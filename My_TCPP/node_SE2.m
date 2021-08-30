@@ -30,5 +30,11 @@ classdef node_SE2 < handle
                 new_nodes(idx).KDT_Rchild = nodes(idx).KDT_Rchild;
             end
         end
+        
+        function to_pt = copy_data(from_pt, to_pt)
+            to_pt.pose   = from_pt.pose;
+            to_pt.cost   = from_pt.cost;
+            to_pt.parent = from_pt.parent;
+        end
     end
 end

@@ -293,10 +293,10 @@ classdef CLS_RRTStar
                 NN_pt            = node_SE2.copy(nodes(NN_idx));
                 
             elseif strcmp(method, 'KDTree_sq_norm')
-                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'sq_norm');
+                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'sq_norm', 1);
                 NN_idx = NaN;
             elseif strcmp(method, 'KDTree_progress_sq_norm')
-                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'progress_sq_norm');
+                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'progress_sq_norm', 1);
                 NN_idx = NaN;
             end
         end

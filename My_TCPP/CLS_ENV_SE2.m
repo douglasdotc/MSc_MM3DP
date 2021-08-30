@@ -27,35 +27,6 @@ classdef CLS_ENV_SE2 < handle
 %             this.y_lim          = y_lim;
         end
         
-        function nodes = sample_pts(this, s, n)
-        %% Description://///////////////////////////////////////////////////////////////////////////
-        % Sample n points from the IRM corresponds to progress s
-        % Inputs:
-        % s:    progress, scalar
-        % n:    Number of points to sample, scalar
-        % Outputs:
-        % nodes: An array of nodes with size nx1
-        % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            
-            % Find the transformation matrix correspond to the progress s:
-            T_s     = this.task_T(:, :, min(size(this.task_T, 3), max(1, ceil(size(this.task_T, 3)*s))));
-            nodes   = [];
-            for idx = 1:n % sample n pts
-                [pt, ~] = this.IRM.sample(T_s(1:3, 4), s);
-                pt      = node_SE2(pt);
-                
-                % KD Tree
-                if isempty(nodes)
-                    nodes = [nodes; pt];
-                else
-                    [isReached, isInserted] = CLS_KDTree.insert(pt, nodes(1));
-                    if isReached && isInserted
-                        nodes = [nodes; pt];
-                    end
-                end
-            end
-        end
-        
         function IsValid = ValidityCheck(this, node)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Check if the point pt is valid
@@ -135,69 +106,6 @@ classdef CLS_ENV_SE2 < handle
             elseif strcmp(item, 'parent')
                 data_size = size(nodes(1).parent);
                 val       = reshape(cell2mat({nodes(:).parent}'), [], data_size(2));
-            end
-        end
-        
-        function break_pts = Breakpoints_Sampling(this, num_node) % NOT IN USE
-        %% Description://///////////////////////////////////////////////////////////////////////////
-        % Inputs:
-        % num_node:     number of points to sample in each IRM
-        %Outputs:
-        % break_pts:    s value (progress) that correspond to possible breakpoints
-        % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-        %%% !!!!!!!!!region beyond the obstacle cannot reach, so not
-        %%% available --> FIX
-            obs_availability  = zeros(size(this.s));
-            task_availability = zeros(size(this.s));
-            for s_idx = 1:length(this.s)
-                obs_num_invalid_pts  = 0;
-                task_num_invalid_pts = 0;
-                
-                % Sample points in each IRM
-                nodes = this.sample_pts(this.s(s_idx), num_node);
-                poses = this.Extract_item(nodes, 'pose');
-                
-                % Check number of points fall in obstacles
-                for o_idx = 1:length(this.obstacles)
-                    [in, on]            = inpolygon(poses(:,1), poses(:,2), this.obstacles{o_idx}.Vertices(:,1), this.obstacles{o_idx}.Vertices(:,2));
-                    obs_num_invalid_pts = obs_num_invalid_pts + sum(in) + sum(on);
-                end
-                
-                % Check number of points fall in printing task
-                if this.s(s_idx) ~= 0
-                    ss_idx = min(length(this.task_coord), round(length(this.task_coord)*this.s(s_idx)));
-                else
-                    ss_idx = 1;
-                end
-                
-                [in, on]                 = inpolygon(this.task_coord(:, 1), this.task_coord(:, 2), poses(:,1), poses(:,2));
-                task_num_invalid_pts     = task_num_invalid_pts + sum(in) + sum(on);
-                
-                obs_availability(s_idx)  = 1 - obs_num_invalid_pts/num_node;
-                task_availability(s_idx) = 1 - task_num_invalid_pts/num_node;
-            end
-            
-            smoothed_availability_obs                                                       = smooth(obs_availability, 0.2, 'rloess');
-            smoothed_availability_obs(smoothed_availability_obs > max(obs_availability))    = max(obs_availability);
-            smoothed_availability_obs                                                       = round(smoothed_availability_obs, 10);
-            TF_obs                                                                          = islocalmin(smoothed_availability_obs);
-            break_pts                                                                       = this.s(TF_obs);
-            
-            smoothed_availability_task                                                      = smooth(task_availability, 0.2, 'rloess');
-            smoothed_availability_task(smoothed_availability_task > max(task_availability)) = max(task_availability);
-            smoothed_availability_task                                                      = round(smoothed_availability_task, 10);
-            TF_task                                                                         = islocalmin(smoothed_availability_task);
-            break_pts                                                                       = sort([break_pts; this.s(TF_task)]);
-            
-            if this.IsDEBUG
-                scatter(this.task_coord(TF_obs,1), this.task_coord(TF_obs,2))
-                scatter(this.task_coord(TF_task,1), this.task_coord(TF_task,2))
-                ax2 = subplot(1,2,2);
-                x   = this.s';
-                plot(x, smoothed_availability_obs, x(TF_obs), smoothed_availability_obs(TF_obs), 'r*')
-                hold on
-                plot(x, smoothed_availability_task, x(TF_task), smoothed_availability_task(TF_task), 'g*')
-                legend({'availability considering obstacles only', 'obstacles local minima', 'availability considering task only', 'task local minima'})
             end
         end
         
@@ -428,12 +336,13 @@ classdef CLS_ENV_SE2 < handle
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             
             % Robot's diagonal size
-            % robot_diag_size     = sqrt((max(this.robot_hitbox(1,:)) - min(this.robot_hitbox(1,:)))^2 + (max(this.robot_hitbox(2,:)) - min(this.robot_hitbox(2,:)))^2);
-            robot_min_size      = min(max(this.robot_hitbox(1,:)) - min(this.robot_hitbox(1,:)), max(this.robot_hitbox(2,:)) - min(this.robot_hitbox(2,:)));
+            robot_diag_size     = sqrt((max(this.robot_hitbox(1,:)) - min(this.robot_hitbox(1,:)))^2 + (max(this.robot_hitbox(2,:)) - min(this.robot_hitbox(2,:)))^2);
+            % robot_min_size      = min(max(this.robot_hitbox(1,:)) - min(this.robot_hitbox(1,:)), max(this.robot_hitbox(2,:)) - min(this.robot_hitbox(2,:)));
             % Consider obstacles
             edges               = this.FindInvolvedEdges();                                  % 1. Find all involved edges
-            check_lines         = this.CheckLines(edges, robot_min_size);                    % 2. Find all checklines with shortest distances between edges < robot size
+            check_lines         = this.CheckLines(edges, robot_diag_size);                   % 2. Find all checklines with shortest distances between edges < robot size
             progress_idxs       = this.ProgressIdx(check_lines);                             % 3. Find nearest progress locations to the interpolated lines
+            % break_pts_idxs      = this.PointsOfDecomposition(progress_idxs, IRM_overlap_threshold);
             obs_break_pts_idxs  = this.Merge_wIRM(progress_idxs, IRM_overlap_threshold);     % 4. If IRM overlap ?% up & availability > ?% --> merge
             
             % Consider task
@@ -493,6 +402,54 @@ classdef CLS_ENV_SE2 < handle
                 plot(x, forward_task_density, x(TF_task), forward_task_density(TF_task), 'r*')
                 xlabel('progress')
                 legend({'Number of points forward (task)', 'break point based on task only'})
+            end
+        end
+        
+        function break_pts_idxs = PointsOfDecomposition(this, progress_idxs, IRM_overlap_threshold)
+        %% Description://///////////////////////////////////////////////////////////////////////////
+        % 1. Break progress_idxs into clusters
+        % 2. For each cluster, if number of indices > 1, take the first and
+        %    last indices.
+        % 3. Then use RM, check reachability from i - 1 to i, then i to i +
+        %    1 until the last index n, then check n --> n + 1
+        % 4. If come to a point where i + k --> i + k + 1 is not
+        %    successful, record and break
+        % 5. Then start from n + 1, check reachability to n ... n - k --> n
+        %    - k - 1
+        % 6. If i + k + 1 = n - k - 1, then there will only be one
+        %    decomposition point, else there are 2. In this case, the region
+        %    between i + k + 1 and n - k - 1 is unprintable.
+        % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+             progress_idxs
+        end
+        
+        function [SDCM_All, GF] = get_jenks_interface(this, Array)
+            total = length (Array);
+            SDCM_All = zeros(1,total);
+            GF = zeros(1,total);
+            % step 1: Calculate the sum of the squared deviations from the mean (SDAM)
+            SDAM = this.get_sum_deviations(Array);
+            % step 2: Calculate the sum of the squared deviations for every possible
+            % combination of classes
+            for i=1:total    
+                class_1 = Array(1:i);
+                class_2 = Array(i+1:total);
+
+                s1 = this.get_sum_deviations(class_1);
+                s2 = this.get_sum_deviations(class_2);
+
+                SDCM_All(i) = s1 + s2;
+                % Calculate the goodness of variance fit 
+                GF(i) = ((SDAM - SDCM_All(i)) / SDAM) ;
+            end
+        end
+        
+        function [sum_deviations] = get_sum_deviations(this, Array)
+            mean_array = mean (Array);
+            sum_deviations = 0;
+            for i=1:length(Array)
+                %sum all the deviations from the mean of the array
+                sum_deviations = sum_deviations + ((Array(i) - mean_array)^2);
             end
         end
         
