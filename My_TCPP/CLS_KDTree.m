@@ -129,6 +129,60 @@ classdef CLS_KDTree
             end
         end
         
+        function kNN = Near_Neighbour(pt, node, dist_method, r, varargin)
+        %% Description://///////////////////////////////////////////////////////////////////////////
+        % Recurrsively find the nearest neighbour with KD tree structured
+        % node
+        % Input:
+        % 1. pt:    Point of interest
+        % 2. node:  the node to be examined [init: node(1)]
+        % 3. varargin:
+        %    - current_dim: Current dimension
+        %    - min_dist:    Minimum distance
+        %    - NN:          Nearest neighbour found at the moment
+        % Outputs:
+        % 2. NN:        --
+        % 1. min_dist:  --
+        % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+            if isempty(varargin)
+                current_dim  = 1;
+                kNN          = [];
+            else
+                current_dim  = varargin{1};
+                kNN          = varargin{2};
+            end
+            n_dim = size(pt.pose, 2);
+            
+            % Capture leaf node
+            if isempty(node)
+                return
+            end
+            
+            % Found point nearer than the nearest:
+            dist = dist_metric.method(pt, node, dist_method);
+            if any(dist < r)
+                kNN = [kNN; node_SE2.copy(node)];
+            end
+            
+            % Calculate next dimension
+            next_dim = mod(current_dim, n_dim) + 1;
+            
+            % Visit subtree
+            if pt.pose(current_dim) < node.pose(current_dim)
+                % Go left side
+                kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, kNN);
+                if r >= abs(pt.pose(current_dim) - node.pose(current_dim))
+                	kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, kNN);
+                end
+            else
+                % Go right side
+                kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, kNN);
+                if r >= abs(pt.pose(current_dim) - node.pose(current_dim))
+                    kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, kNN);
+                end
+            end
+        end
+        
         function mind_pt = FindMin(node, dim, varargin)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Find the point with the smallest value in the dth dimension (dim)

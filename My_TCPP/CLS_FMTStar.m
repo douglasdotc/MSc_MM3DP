@@ -4,20 +4,23 @@ classdef CLS_FMTStar
         sampling_intensity                          % Number of points that will sample in each IRM
         kNN_num
         s_f                                         % Ending progress (can be a number other than 1)
+        max_trial                                   % maximum number of trials for a progress, skip this point of progress when reached
         break_pts                                   % break points of the whole task
         X_open    = [];                             % 
         X_fringe  = {};
         nodes     = {};
+        sects     = {};
         NN_method = 'KDTree_progress_sq_norm';      % Nearest Neighbour search method
         IsDEBUG                                     % Debug Flag
     end
     
     methods
-        function this = CLS_FMTStar(Env, sampling_intensity, kNN_num, varargin)
+        function this = CLS_FMTStar(Env, sampling_intensity, kNN_num, max_trial, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env                = Env;
             this.sampling_intensity = sampling_intensity;
             this.kNN_num            = kNN_num;
+            this.max_trial          = max_trial;
             this.IsDEBUG            = this.Env.IsDEBUG;
             if ~isempty(varargin)
                 this.break_pts = varargin{1};
@@ -27,7 +30,7 @@ classdef CLS_FMTStar
             end
         end
         
-        function [path, ite] = FMT_Star(this)
+        function [paths, ite] = FMT_Star(this)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % 
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -39,6 +42,41 @@ classdef CLS_FMTStar
             % where the sampling can be done < certain threshold -->
             % turn off adaptive sampling
             
+            [paths, ite] = this.Forward_FMT_Star();
+            
+            starts = [];
+            ends   = [];
+            for d_idx = 1:length(paths)
+                starts = [starts; paths{d_idx}(1).pose(5)];
+                ends   = [ends; paths{d_idx}(end).pose(5)];
+            end
+%             starts = starts(2:end);
+%             ends   = ends(1:end-1);
+%             
+%             [paths, ite] = this.Backward_FMT_Star(starts, ends, paths, ite);
+            
+            % Free memory
+            this.X_open    = [];
+            this.X_fringe  = {};
+            this.nodes     = {};
+            this.sects     = {};
+                        
+            %if this.IsDEBUG
+            for pdx = 1:length(paths)
+                for kdx = length(paths{pdx}):-1:2
+                    line([paths{pdx}(kdx-1).pose(1), paths{pdx}(kdx).pose(1)], [paths{pdx}(kdx-1).pose(2), paths{pdx}(kdx).pose(2)], [0,0], 'Color', '#E1701A', 'LineWidth', 4);
+                end
+                POSES = this.Env.Extract_item(paths{pdx}, 'pose');
+                quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 'Color', '#F7A440', 'LineWidth', 2);
+            end
+            %end
+        end
+        
+        function [paths, ite] = Backward_FMT_Star(this, starts, ends, paths, ite)
+            s_min
+        end
+        
+        function [paths, ite] = Forward_FMT_Star(this)
             if ~isempty(this.break_pts)
                 s_max = this.break_pts(1:end-1);        % Current furthest progress
             else
@@ -49,6 +87,7 @@ classdef CLS_FMTStar
             this.nodes       = this.sample_pts(s_max, 1);
             this.X_fringe    = {};
             curr             = node_SE2.copy(this.nodes);
+            draw_cache       = [];
             
             fprintf('Sampling...');
             for s_idx = 2:length(this.Env.s)
@@ -60,6 +99,8 @@ classdef CLS_FMTStar
             delta_l      = 0.1;
             delta_l_step = delta_l/5;
             ite          = 1;
+            sect_idx     = 1;
+            trial        = 0;   % + 1 when cannot extend
             
             % Main loop
             while true
@@ -103,63 +144,71 @@ classdef CLS_FMTStar
                         end
                     end
 
-%                             if this.IsDEBUG
-%                                 if CanExtend(jdx)
-%                                     line([curr{idx}.pose(1), new_pt.pose(1)], [curr{idx}.pose(2), new_pt.pose(2)], [0, 0], 'Color', '#316879', 'LineWidth', 2);
-%                                     quiver(new_pt.pose(:,1), new_pt.pose(:,2), new_pt.pose(:,3), new_pt.pose(:,4), 0.2, 'LineWidth', 2);
-%                                     drawnow
-%                                 end
-%                             end
+                    if this.IsDEBUG
+                        if CanExtend(jdx)
+                            draw_cache = [draw_cache; [curr.pose, new_pt.pose]];
+                        end
+                    end
                 end
 
                 if any(CanExtend)
                     % Update curr:
-                    [curr, this.X_fringe] = this.X_fringe_removeMin(s_max);
+                    [curr, this.X_fringe] = this.X_fringe_removeMin(s_max, delta_l);
                     % Add new pt:
-                    this.nodes = [this.nodes; node_SE2.copy(curr)];
+                    this.nodes  = [this.nodes; node_SE2.copy(curr)];
+                    trial       = 0; % Reset trial
                     %if this.IsDEBUG
-                        fprintf('Progress (Can Extend): %.4f \n', curr.pose(5));
+                        fprintf('Progress (Can Extend): %.4f\n', curr.pose(5));
                     %end
                 else
                     % Adaptive Sampling:
                     AS_min = find(this.Env.s > curr.pose(5), 1); % Sample from progress + n
+                    
                     for AS_idx = AS_min:min(AS_min + 30, length(this.Env.s))
                         this.X_open = this.sample_pts(this.Env.s(AS_idx), this.sampling_intensity, this.X_open);
                     end
+                    
+                    trial = trial + 1;
                     %if this.IsDEBUG
-                        fprintf('Progress (Can NOT Extend): %.4f \n', curr.pose(5));
+                        fprintf('Progress (Can NOT Extend): %.4f\n', curr.pose(5));
                     %end
                 end
 
-                ite = ite + 1;
-
+                if trial > this.max_trial
+                    this.sects{sect_idx} = curr;
+                    NS_idx               = find(this.Env.s > curr.pose(5), 1);
+                    curr                 = this.sample_pts(this.Env.s(NS_idx), 1); % just sample one seems not enough
+                    sect_idx             = sect_idx + 1;
+                    fprintf('Decomposed, next section start at %.4f\n', curr.pose(5));
+                end
+                
                 if curr.pose(5) > s_max
                     s_max = curr.pose(5);
                 end
-
+                ite = ite + 1;
                 if round(curr.pose(5), 5) >= round(this.s_f, 5) % || isempty(this.X_fringe)
                     break;
                 end
             end
+            this.sects{sect_idx} = curr;
+            
+            
+            if this.IsDEBUG % Draw tree:
+                line([draw_cache(:,1), draw_cache(:,6)], [draw_cache(:,2), draw_cache(:,7)], [0,0], 'Color', '#316879', 'LineWidth', 2);
+                quiver(draw_cache(:,6), draw_cache(:,7), draw_cache(:,8), draw_cache(:,9), 0.2, 'LineWidth', 2);
+                drawnow
+            end
+            draw_cache = [];
             
             % Trace path
-            prev = node_SE2.copy(this.nodes(end));
-            path = prev;
-            while ~isempty(prev.parent)
-                next = node_SE2.copy(prev.parent);
-                path = [next; path];
-                prev = next;
-            end
-            this.X_open     = [];
-            this.X_fringe   = [];
-            this.nodes      = [];
-            
-            if this.IsDEBUG
-                for kdx = length(path):-1:2
-                    line([path(kdx-1).pose(1), path(kdx).pose(1)], [path(kdx-1).pose(2), path(kdx).pose(2)], [0,0], 'Color', '#E1701A', 'LineWidth', 4);
+            for d_idx = 1:length(this.sects)
+                prev         = node_SE2.copy(this.sects{d_idx});
+                paths{d_idx} = prev;
+                while ~isempty(prev.parent)
+                    next         = node_SE2.copy(prev.parent);
+                    paths{d_idx} = [next; paths{d_idx}];
+                    prev         = next;
                 end
-                POSES = this.Env.Extract_item(path, 'pose');
-                quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 'Color', '#F7A440', 'LineWidth', 2);
             end
         end
         
@@ -181,27 +230,31 @@ classdef CLS_FMTStar
             end
         end
         
-        function [curr, X_fringe] = X_fringe_removeMin(this, s_max)
+        function [curr, X_fringe] = X_fringe_removeMin(this, s_max, delta_l)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % 
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-%             mean     = s_max;                 % Current furthest progress
-%             s_var    = 0.03*s_f;              % Variance
-%             sigma    = sqrt(s_var);           % Wiggle around Current furthest progress
-%             
-%             % Locate a range of progress
-%             range_min = max(s_break, mean);
-%             range_max = mean + sigma;
-%             
-%             poses              = this.Env.Extract_item(this.X_fringe, 'pose');
-%             selected_X_fringe  = this.X_fringe(poses(:,5) >= range_min & poses(:,5) <= range_max);
-%             curr               = node_SE2.copy(selected_X_fringe(1));   % select the one with the lowest cost
-%             idx                = find(curr.pose == poses, 1);
-%             this.X_fringe(idx) = [];                                    % Delete the selected one in X_fringe
-            poses                               = this.Env.Extract_item(this.X_fringe, 'pose');
-            this.X_fringe(poses(:,5) < s_max)	= [];
-            curr                                = this.X_fringe(1);
-            this.X_fringe(1)                 	= [];
+            mean     = s_max;                 % Current furthest progress
+            s_var    = 0.1*this.s_f;        % Variance
+            sigma    = sqrt(s_var);           % Wiggle around Current furthest progress
+            s_Norm   = sigma*randn(1) + mean; % Normal distribution sampling
+            s_rand   = max(0, min(this.s_f, s_Norm));
+            s_idx    = min(size(this.Env.s, 1), max(1, ceil(size(this.Env.s, 1)*s_rand)));
+            
+            poses              = this.Env.Extract_item(this.X_fringe, 'pose');
+            selected_X_fringe  = this.X_fringe(abs(poses(:,5) - this.Env.s(s_idx)) <= delta_l); % sorted list
+            if ~isempty(selected_X_fringe)
+                curr = node_SE2.copy(selected_X_fringe(1));   % select the one with the lowest cost
+            else
+                [val, idx] = min(abs(poses(:,5) - this.Env.s(s_idx)));
+                curr       = this.X_fringe(idx);
+            end
+            idx                = find(curr.pose == poses, 1);
+            this.X_fringe(idx) = [];                                    % Delete the selected one in X_fringe
+%             poses                               = this.Env.Extract_item(this.X_fringe, 'pose');
+%             this.X_fringe(poses(:,5) < s_max)	= [];
+%             curr                                = this.X_fringe(1);
+%             this.X_fringe(1)                 	= [];
             X_fringe                            = this.X_fringe;
         end
         

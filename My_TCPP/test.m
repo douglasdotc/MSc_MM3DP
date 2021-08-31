@@ -45,10 +45,11 @@ time_arr = [];
 if IsDEBUG
     axes(ax1);
 end
-sampling_intensity = 10;
-kNN_num = 3;
+sampling_intensity  = 5;
+r_search            = 2;
+max_trial           = 10;
 for idx = 1:1
-    FMTStar = CLS_FMTStar(Env, sampling_intensity, kNN_num);%, break_pts);
+    FMTStar = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial);%, break_pts);
     tic
         [path, ite] = FMTStar.FMT_Star;
     time = toc;

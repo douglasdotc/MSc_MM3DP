@@ -57,7 +57,7 @@ classdef CLS_ENV_SE2 < handle
                 
                 if Iscollide
                     if this.IsDEBUG
-                        disp("Robot collide with obstacles")
+                        %disp("Robot collide with obstacles")
                     end
                     IsValid = false;
                     return;
@@ -76,7 +76,7 @@ classdef CLS_ENV_SE2 < handle
             IsCollide   = any(inpolygon(que_x, que_y, Robot_Poly(:,1), Robot_Poly(:,2)));
             if IsCollide
                 if this.IsDEBUG
-                    disp("Robot collide with task")
+                    %disp("Robot collide with task")
                 end
                 IsValid = false;
                 return
