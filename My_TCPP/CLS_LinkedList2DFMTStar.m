@@ -76,6 +76,16 @@ classdef CLS_2DFMTStar
             %end
         end
         
+        function scatter_plot(this, node)
+            %%
+            if isempty(node)
+                return
+            end
+            scatter(node.pose(1), node.pose(2))
+            this.scatter_plot(node.KDT_Lchild)
+            this.scatter_plot(node.KDT_Rchild)
+        end
+        
         function [paths, ite] = Forward_FMT_Star(this)
             %%
             if ~isempty(this.break_pts)
@@ -88,17 +98,23 @@ classdef CLS_2DFMTStar
             x_init = this.TD_sample_pts(1);
             scatter(x_init.pose(1), x_init.pose(2), 'x')
             fprintf('Sampling...');
-            for idx = 1:100
-                this.V = [this.V; this.TD_sample_pts(1)];
-            end
+            this.V = this.TD_sample_pts(100);
+%             for idx = 1:100
+%                 this.V = [this.V; this.TD_sample_pts(1)];
+%             end
             fprintf('done\n');
             
             poses = this.Env.Extract_item(this.V, 'pose');
             scatter(poses(:,1), poses(:,2))
             
-            this.V              = [x_init; this.V];
-            this.E              = [];
-            this.V_unvisited    = this.V(2:end);
+            CLS_KDTree.insert(x_init, this.V);
+            this.E = [];
+            this.V_unvisited = node_SE2.deep_copy(this.V);
+            CLS_KDTree.Delete(x_init, this.V_unvisited);
+            
+%             this.V              = [x_init; this.V];
+%             this.E              = [];
+%             this.V_unvisited    = this.V(2:end);
 
             this.V_open         = node_SE2.deep_copy(x_init);
             z                   = node_SE2.deep_copy(x_init);
@@ -114,12 +130,26 @@ classdef CLS_2DFMTStar
             % Main loop
             while true % all(z.pose ~= goal.pose)
                 V_open_new   = [];
-                [N_z, dists] = this.Near(this.V, z, this.r_search);
-                X_near       = this.Intersect(N_z, this.V_unvisited);
+                % link list stuff
+                temp_V = node_SE2.deep_copy(this.V);
+                CLS_KDTree.Delete(z, temp_V);
+                [N_z, ~, ~] = this.Nearest_Neighbour(z, temp_V, this.NN_method, this.r_search);
+                clear temp_V % free memory
+                X_near = this.LIntersect(N_z, this.V_unvisited);
+                
+%                 [N_z, dists] = this.Near(this.V, z, this.r_search);
+%                 X_near       = this.Intersect(N_z, this.V_unvisited);
                 for ndx = 1:length(X_near)
                     x                   = X_near(ndx);
-                    [N_x, dists]        = this.Near(this.V, x, this.r_search);
-                    Y_near              = this.Intersect(N_x, this.V_open);
+                    % link list stuff
+                    temp_V = node_SE2.deep_copy(this.V);
+                    CLS_KDTree.Delete(x, temp_V);
+                    [N_x, ~, ~] = this.Nearest_Neighbour(x, temp_V, this.NN_method, this.r_search);
+                    clear temp_V % free memory
+                    Y_near = this.LIntersect(N_x, this.V_open);
+                    
+%                     [N_x, dists]        = this.Near(this.V, x, this.r_search);
+%                     Y_near              = this.Intersect(N_x, this.V_open);
                     if ~isempty(Y_near)
                         [cost, y_min_idx]   = min(this.Env.Extract_item(Y_near, 'cost') + dist_metric.method(x, Y_near, dist_method));
                         y_min               = Y_near(y_min_idx);
@@ -129,7 +159,10 @@ classdef CLS_2DFMTStar
                             x.cost      = cost;
                             x.parent    = node_SE2.copy(y_min);
                             V_open_new  = [V_open_new; x];
-                            this.V_unvisited = this.DeleteNode(this.V_unvisited, x);
+                            % link list stuff
+                            CLS_KDTree.Delete(x, this.V_unvisited);
+                            
+%                             this.V_unvisited = this.DeleteNode(this.V_unvisited, x);
                             
                             line([y_min.pose(1), x.pose(1)], [y_min.pose(2), x.pose(2)], [0,0], 'Color', '#316879', 'LineWidth', 2);
                             drawnow
@@ -137,20 +170,32 @@ classdef CLS_2DFMTStar
                     end
                 end
                 
+                % link list stuff
+                for o_idx = 1:length(V_open_new)
+                    CLS_KDTree.insert(V_open_new(o_idx), this.V_open);
+                end
+                CLS_KDTree.Delete(z, this.V_open);
+                CLS_KDTree.insert(z, this.V_closed);
                 
-                this.V_open = [this.V_open; V_open_new];
-                this.V_open = this.DeleteNode(this.V_open, z);
-                this.V_closed = [this.V_closed; z];
+%                 this.V_open = [this.V_open; V_open_new];
+%                 this.V_open = this.DeleteNode(this.V_open, z);
+%                 this.V_closed = [this.V_closed; z];
                 if isempty(this.V_open) || isempty(this.V_unvisited)
                     fprintf("Failure/Searching Exhausted\n")
                     break
                 end
                 
                 % link list stuff
-                costs                    = this.Env.Extract_item(this.V_open, 'cost');
+                [poses, costs] = node_SE2.ExtractData(this.V_open);
                 [min_cost, min_cost_idx] = min(costs);
-                z                        = this.V_open(min_cost_idx);
-            end
+                [m_pt, m_val, ~] = this.Nearest_Neighbour(node_SE2(poses(min_cost_idx)), this.V_open, 'KDTree_sq_norm', 1);
+                if m_val == 0
+                    z = node_SE2.deep_copy(m_pt);
+                end
+%                 costs                    = this.Env.Extract_item(this.V_open, 'cost');
+%                 [min_cost, min_cost_idx] = min(costs);
+%                 z                        = this.V_open(min_cost_idx);
+            end            
             
             if this.IsDEBUG % Draw tree:
                 line([this.E(:,1), this.E(:,6)], [this.E(:,2), this.E(:,7)], [0,0], 'Color', '#316879', 'LineWidth', 2);
@@ -188,6 +233,30 @@ classdef CLS_2DFMTStar
             dists   = dists(dists <= r);
         end
         
+        function UpdateCost(this, x, node)
+            %%
+            if isempty(node)
+                return
+            end
+            
+            if all(x.pose == node.pose)
+                node.cost = x.cost;
+            else
+                this.UpdateCost(x, node.KDT_Lchild);
+                this.UpdateCost(x, node.KDT_Rchild);
+            end
+        end
+        
+        function inter_nodes = LIntersect(this, nodes, list)
+            %%
+            inter_nodes = [];
+            for idx = 1:length(nodes)
+                [m_pt, m_val, ~] = Nearest_Neighbour(this, nodes(idx), list, 'KDTree_sq_norm', 1);
+                if m_val == 0
+                    inter_nodes = [inter_nodes; m_pt];
+                end
+            end
+        end
         function inter_nodes = Intersect(this, nodes, list)
             %%
             inter_nodes = [];
@@ -232,7 +301,6 @@ classdef CLS_2DFMTStar
         end
         
         function IsValid = CollisionCheck(this, node)
-            %% TO BE DELETED
             IsValid = true;
             % Robot hit box pose:
             ro_T = [node.pose(3), -node.pose(4), node.pose(1);
@@ -257,7 +325,6 @@ classdef CLS_2DFMTStar
         end
         
         function nodes = TD_sample_pts(this, n, varargin)
-            %% TO BE DELETED
             if ~isempty(varargin)
                 nodes   = varargin{1};
             else
