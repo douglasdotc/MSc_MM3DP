@@ -8,11 +8,11 @@ classdef dist_metric
             if strcmp(method, 'sq_norm')
                 dists = dist_metric.sq_norm(pt, nodes);
                 
-            elseif strcmp(method, 'progress_sq_norm')
-                dists = dist_metric.progress_sq_norm(pt, nodes);
+            elseif strcmp(method, 'forward_progress_sq_norm')
+                dists = dist_metric.forward_progress_sq_norm(pt, nodes);
                 
-            elseif strcmp(method, 'FMT_progress_sq_norm')
-                dists = dist_metric.FMT_progress_sq_norm(pt, nodes);
+            elseif strcmp(method, 'backward_progress_sq_norm')
+                dists = dist_metric.backward_progress_sq_norm(pt, nodes);
             end
         end
         
@@ -36,8 +36,9 @@ classdef dist_metric
             % dists = vecnorm(dists, 2, 2);
         end
         
-        function dists = progress_sq_norm(pt, nodes)
+        function dists = forward_progress_sq_norm(pt, nodes)
         %% Description://///////////////////////////////////////////////////////////////////////////
+        % Extend from nodes to point
         % Angle difference euclidean distance ||x_i(q_1) - p(q_2)|| if s_1 < s_2 else Inf
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 %             theta_diffs                 = arrayfun(@(node)atan2(node.pose(4), node.pose(3)), nodes) - atan2(pt.pose(4), pt.pose(3));
@@ -65,9 +66,10 @@ classdef dist_metric
 %             assert(sum(dists == dists) == length(nodes))
         end
         
-        function dists = FMT_progress_sq_norm(pt, nodes)
+        function dists = backward_progress_sq_norm(pt, nodes)
         %% Description://///////////////////////////////////////////////////////////////////////////
-        % Angle difference euclidean distance ||x_i(q_1) - p(q_2)|| if s_1 < s_2 else Inf
+        % Extend from pt to nodes
+        % Angle difference euclidean distance ||x_i(q_1) - p(q_2)|| if s_1 > s_2 else Inf
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 %             theta_diffs                 = arrayfun(@(node)atan2(node.pose(4), node.pose(3)), nodes) - atan2(pt.pose(4), pt.pose(3));
 %             adjusted_theta_diffs        = atan2(sin(theta_diffs), cos(theta_diffs));

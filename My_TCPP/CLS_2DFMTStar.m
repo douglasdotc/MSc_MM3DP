@@ -85,16 +85,23 @@ classdef CLS_2DFMTStar
             end
             
             % Init:
-            x_init = this.TD_sample_pts(1);
-            scatter(x_init.pose(1), x_init.pose(2), 'x')
+            x_init = this.sample_pts(this.Env.s(1), 1);
+%             x_init = this.TD_sample_pts(1);
+%             scatter(x_init.pose(1), x_init.pose(2), 'x')
+            
             fprintf('Sampling...');
-            for idx = 1:100
-                this.V = [this.V; this.TD_sample_pts(1)];
+%             for idx = 1:100
+%                 this.V = [this.V; this.TD_sample_pts(1)];
+%             end
+            for s_idx = 1:length(this.Env.s)
+                for idx = 1:this.sampling_intensity
+                    this.V = [this.V; this.sample_pts(this.Env.s(s_idx), 1)];
+                end
             end
             fprintf('done\n');
             
-            poses = this.Env.Extract_item(this.V, 'pose');
-            scatter(poses(:,1), poses(:,2))
+%             poses = this.Env.Extract_item(this.V, 'pose');
+%             scatter(poses(:,1), poses(:,2))
             
             this.V              = [x_init; this.V];
             this.E              = [];
@@ -103,59 +110,79 @@ classdef CLS_2DFMTStar
             this.V_open         = node_SE2.deep_copy(x_init);
             z                   = node_SE2.deep_copy(x_init);
                         
-            % dist_method  = 'progress_sq_norm';
-            dist_method  = 'sq_norm';
-            delta_l      = 0.1;
+            dist_method  = 'forward_progress_sq_norm';
+            % dist_method  = 'sq_norm';
+            delta_l      = 1;
             delta_l_step = delta_l/5;
             ite          = 1;
             sect_idx     = 1;
             trial        = 0;   % + 1 when cannot extend
             
             % Main loop
-            while true % all(z.pose ~= goal.pose)
+            while ~all(abs(z.pose(5) - this.s_f) < 1e-5)
                 V_open_new   = [];
-                [N_z, dists] = this.Near(this.V, z, this.r_search);
+                [N_z, dists] = this.Near(this.V, z, this.r_search, 'backward_progress_sq_norm');
                 X_near       = this.Intersect(N_z, this.V_unvisited);
                 for ndx = 1:length(X_near)
                     x                   = X_near(ndx);
-                    [N_x, dists]        = this.Near(this.V, x, this.r_search);
+                    [N_x, dists]        = this.Near(this.V, x, this.r_search, dist_method);
                     Y_near              = this.Intersect(N_x, this.V_open);
                     if ~isempty(Y_near)
                         [cost, y_min_idx]   = min(this.Env.Extract_item(Y_near, 'cost') + dist_metric.method(x, Y_near, dist_method));
                         y_min               = Y_near(y_min_idx);
 
-                        if this.CollisionCheck(x)
-                            this.E      = [this.E; [y_min.pose, x.pose]];
-                            x.cost      = cost;
-                            x.parent    = node_SE2.copy(y_min);
-                            V_open_new  = [V_open_new; x];
-                            this.V_unvisited = this.DeleteNode(this.V_unvisited, x);
+                        if this.Env.ValidityCheck(x)
+                            % Extend from y_min --> x
+                            new_pt_pose         = this.Extend(x, y_min, delta_l_step, delta_l, dist_method);
+                            new_pt              = node_SE2(new_pt_pose);
                             
-                            line([y_min.pose(1), x.pose(1)], [y_min.pose(2), x.pose(2)], [0,0], 'Color', '#316879', 'LineWidth', 2);
-                            drawnow
+                            % If y_min cannot extend (x.pose == y_min.pose) dont add to V_open and it will automatically
+                            % migrate to V_closed from V_open and no need to delete original x from V_unvisited because
+                            % it is checked with collision and not reached so it may be able to reuse.
+                            
+                            if all(round(new_pt.pose - y_min.pose, 10)) % ~all(new_pt.pose == y_min.pose)
+                                % points stopped in the middle between y_min and x have to be added to this.V
+                                if ~all(new_pt.pose == x.pose)
+                                    this.V = [this.V; node_SE2.deep_copy(new_pt)];
+                                end
+                                this.E              = [this.E; [y_min.pose, new_pt.pose]];
+                                new_pt.cost         = y_min.cost + dist_metric.method(new_pt, y_min, dist_method); % cost;
+                                assert(new_pt.cost ~= Inf)
+                                new_pt.parent       = node_SE2.copy(y_min);
+                                V_open_new          = [V_open_new; new_pt];
+                                this.V_unvisited    = this.DeleteNode(this.V_unvisited, new_pt);
+                            end
                         end
+                    else
+                        fprintf("Y_near is empty\n")
                     end
                 end
                 
-                
-                this.V_open = [this.V_open; V_open_new];
-                this.V_open = this.DeleteNode(this.V_open, z);
-                this.V_closed = [this.V_closed; z];
+                this.V_open     = [this.V_open; V_open_new];
+                this.V_open     = this.DeleteNode(this.V_open, z);
+                this.V_closed   = [this.V_closed; z];
                 if isempty(this.V_open) || isempty(this.V_unvisited)
                     fprintf("Failure/Searching Exhausted\n")
                     break
                 end
                 
-                % link list stuff
-                costs                    = this.Env.Extract_item(this.V_open, 'cost');
-                [min_cost, min_cost_idx] = min(costs);
-                z                        = this.V_open(min_cost_idx);
+                z = this.RandConfig(s_max);
+%                 costs                    = this.Env.Extract_item(this.V_open, 'cost');
+%                 [min_cost, min_cost_idx] = min(costs);
+%                 z                        = this.V_open(min_cost_idx);
+                
+                if z.pose(5) > s_max
+                    s_max = z.pose(5);
+                end
+                fprintf('Progress: %.4f\n', z.pose(5));
             end
             
             if this.IsDEBUG % Draw tree:
-                line([this.E(:,1), this.E(:,6)], [this.E(:,2), this.E(:,7)], [0,0], 'Color', '#316879', 'LineWidth', 2);
-                quiver(this.E(:,6), this.E(:,7), this.E(:,8), this.E(:,9), 0.2, 'LineWidth', 2);
-                drawnow
+                if ~isempty(this.E)
+                    line([this.E(:,1), this.E(:,6)], [this.E(:,2), this.E(:,7)], [this.E(:,5), this.E(:,10)], 'Color', '#316879', 'LineWidth', 0.5);
+                    quiver(this.E(:,6), this.E(:,7), this.E(:,8), this.E(:,9), 0.2, 'LineWidth', 2);
+                    drawnow
+                end
             end
             this.E = [];
             
@@ -169,6 +196,27 @@ classdef CLS_2DFMTStar
             end
         end
         
+        function z = RandConfig(this, s_max)
+            %% push forward
+            % choose a progress max at s_max, choosing a progress > s_max will intentionally break the path.
+            % choose a random progress max at s_max then choose the node with minimum cost
+            mean   = s_max;                 % Current furthest progress
+            s_var  = 0.001*this.s_f;         % Variance
+            sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
+            s_Norm = sigma*randn(1) + mean; % Normal distribution sampling
+            s_rand = max(0, min(s_max, s_Norm));
+            
+            poses                    = this.Env.Extract_item(this.V_open, 'pose');
+            selected_V_open = this.V_open(abs(poses(:,5) - s_rand) <= 0.01);
+            if isempty(selected_V_open)
+                costs                = this.Env.Extract_item(this.V_open, 'cost');
+            else
+                costs                = this.Env.Extract_item(selected_V_open, 'cost');
+            end
+            [min_cost, min_cost_idx] = min(costs);
+            z                        = this.V_open(min_cost_idx);
+        end
+        
         function m_nodes = DeleteNode(this, nodes, pt)
             %%
             for idx = 1:length(nodes)
@@ -180,10 +228,10 @@ classdef CLS_2DFMTStar
             m_nodes = nodes;
         end
         
-        function [N_nodes, dists] = Near(this, nodes, pt, r)
+        function [N_nodes, dists] = Near(this, nodes, pt, r, dist_method)
             %%
-            m_nodes = DeleteNode(this, nodes, pt);
-            dists   = dist_metric.method(pt, m_nodes, 'sq_norm');
+            m_nodes = this.DeleteNode(nodes, pt);
+            dists   = dist_metric.method(pt, m_nodes, dist_method);
             N_nodes = m_nodes(dists <= r);
             dists   = dists(dists <= r);
         end
@@ -208,7 +256,7 @@ classdef CLS_2DFMTStar
             d_theta   = atan2(sin(d_theta), cos(d_theta));
 
             line_step = ([to_pt.pose(1:2) - from_pt.pose(1:2), d_theta, to_pt.pose(5) - from_pt.pose(5)].*delta_l_step); %/dist_metric.method(to_pt, from_pt, method);
-            while dist_metric.method(to_pt, from_pt, dist_method) > delta_l_step
+            while dist_metric.method(to_pt, new_pt, dist_method) > delta_l_step
                 % from_pt o--->--->---x to_pt
                 % angle should add/subtract in radians
                 angle       = atan2(new_pt.pose(4), new_pt.pose(3)) + line_step(3);

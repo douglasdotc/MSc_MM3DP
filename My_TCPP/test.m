@@ -26,12 +26,14 @@ T        = PrintingTask.toTForm(PrintingTask);
 T(3,4,:) = 0;
 T        = TForm.tformX(T,TForm.DOWN);
 PrintingTask.plot();
+
 %% IRM
 min_task_robot_dist = 0.15;
 IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
+
 %% Obstacles
 Obstacles_Poly = Obstacles(1.5, IsDEBUG);
-% Obstacles_Poly = {};
+Obstacles_Poly = {};
 
 %% Create Task Environment
 Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
@@ -45,9 +47,10 @@ time_arr = [];
 if IsDEBUG
     axes(ax1);
 end
-sampling_intensity  = 5;
-r_search            = 2;
+sampling_intensity  = 2;
+r_search            = 1;
 max_trial           = 10;
+
 for idx = 1:1
     FMTStar = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial);%, break_pts);
     tic
