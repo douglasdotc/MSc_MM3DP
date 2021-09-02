@@ -39,7 +39,7 @@ classdef CLS_RRTStar
             % ***********************Search task ***********************
             
             % *********************** Parameters ***********************
-            dist_method               = 'progress_sq_norm';             % Method name for calculating distance
+            dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
             max_iter                  = 1e4;                            % Max. iteration
             delta_l                   = 0.1;                            % RRT edge length
             delta_relink_l            = 0.2;                            % Relink edge length
@@ -222,7 +222,7 @@ classdef CLS_RRTStar
                 val = any(this.dist_metric(q_goal, nodes, NN_method) <= delta_l);
 
             elseif strcmp(NN_method, 'KDTree_progress_sq_norm')
-                [~, min_dist] = CLS_KDTree.Nearest_Neighbour(q_goal, nodes(1), 'progress_sq_norm');
+                [~, min_dist] = CLS_KDTree.Nearest_Neighbour(q_goal, nodes(1), 'forward_progress_sq_norm');
                 val           = (min_dist <= delta_l);
             end
         end
@@ -296,7 +296,7 @@ classdef CLS_RRTStar
                 [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'sq_norm', 1);
                 NN_idx = NaN;
             elseif strcmp(method, 'KDTree_progress_sq_norm')
-                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'progress_sq_norm', 1);
+                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'forward_progress_sq_norm', 1);
                 NN_idx = NaN;
             end
         end

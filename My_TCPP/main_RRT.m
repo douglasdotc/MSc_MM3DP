@@ -85,11 +85,10 @@ if IsDEBUG
     axes(ax1);
 end
 
-
 ite_arr  = [];
 time_arr = [];
 num_node = 200;
-parfor idx = 1:1000
+for idx = 1:1
     %% Sample starting points
 %     num_node    = 200;
 %     start_nodes = Env.sample_pts(0, num_node);
@@ -112,7 +111,7 @@ parfor idx = 1:1000
     fprintf('%d in %.3f seconds, %d iterations.\n', idx, time, ite)
 end
 hold off
-scatter(ite_arr, time_arr)
-hold on
-xlabel('Number of iterations')
-ylabel('Time (second)')
+% scatter(ite_arr, time_arr)
+% hold on
+% xlabel('Number of iterations')
+% ylabel('Time (second)')
