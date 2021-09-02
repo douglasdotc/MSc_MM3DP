@@ -1,4 +1,4 @@
-classdef CLS_RRTStar
+classdef CLS_2DRRTStar
     properties
         Env                                         % Environment that RRT* is exploring with
         start_nodes                                 % n sampled starting nodes with structure node_SE2
@@ -9,7 +9,7 @@ classdef CLS_RRTStar
     end
     
     methods
-        function this = CLS_RRTStar(Env, start_nodes, varargin)
+        function this = CLS_2DRRTStar(Env, start_nodes, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env           = Env;
             this.IsDEBUG       = this.Env.IsDEBUG;
@@ -194,7 +194,7 @@ classdef CLS_RRTStar
         % current_IRM:  Current IRM
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             mean   = s_max;                 % Current furthest progress
-            s_var  = 0.1*s_f;         % Variance
+            s_var  = 0.1*s_f;               % Variance
             sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
             s_Norm = sigma*randn(1) + mean; % Normal distribution sampling
 
@@ -275,6 +275,26 @@ classdef CLS_RRTStar
             end
             % sampled point is less then one step away:
             new_pt_pose = to_pt.pose;
+        end
+        
+        function nodes = TD_sample_pts(this, n, varargin)
+            %% TO BE DELETED
+            if ~isempty(varargin)
+                nodes   = varargin{1};
+            else
+                nodes   = [];
+            end
+            
+            for idx = 1:n
+                pt = [randi(6)*rand(1,2), 1, 0, 0];
+                pt = node_SE2(pt);
+                
+                if isempty(nodes)
+                    nodes = pt;
+                else
+                    CLS_KDTree.insert(pt, nodes);
+                end
+            end
         end
         
         function [NN_pt, NN_val, NN_idx] = Nearest_Neighbour(this, pos, nodes, method)

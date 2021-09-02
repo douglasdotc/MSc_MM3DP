@@ -66,7 +66,7 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 
 %% Obstacles
 Obstacles_Poly = Obstacles(1.5, IsDEBUG);
-% Obstacles_Poly = {};
+Obstacles_Poly = {};
 
 %% Create Task Environment
 Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
@@ -102,7 +102,8 @@ for idx = 1:1
 %     end
     start_nodes = Multi_sample(Env, break_pts, num_node, IsDEBUG);
     %% RRT*
-    RRTStar     = CLS_RRTStar(Env, start_nodes, break_pts);
+    RRTStar     = CLS_2DRRTStar(Env, start_nodes, break_pts);
+%     RRTStar     = CLS_RRTStar(Env, start_nodes, break_pts);
     tic
         [path, ite] = RRTStar.RRT_Star;
     time = toc;
