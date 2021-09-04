@@ -3,8 +3,9 @@ classdef CLS_2DBRRTStar
         Env                                         % Environment that RRT* is exploring with
         start_nodes                                 % n sampled starting nodes with structure node_SE2
         edges
-        NN_method = 'KDTree_sq_norm';
-%         NN_method = 'KDTree_progress_sq_norm';      % Nearest Neighbour search method
+%         NN_method = 'KDTree_sq_norm';
+        NN_method = 'KDTree_forward_progress_sq_norm';      % Nearest Neighbour search method
+        s_i
         s_f                                         % Ending progress (can be a number other than 1)
         break_pts                                   % break points of the whole task
         cost_best  = Inf;
@@ -20,9 +21,11 @@ classdef CLS_2DBRRTStar
             this.start_nodes   = start_nodes;
             if ~isempty(varargin)
                 this.break_pts = varargin{1};
+                this.s_i       = this.break_pts(1:end-1);
                 this.s_f       = this.break_pts(2:end);
             else
-                this.s_f       = max(this.Env.s);
+                this.s_i       = this.Env.s(1);
+                this.s_f       = this.Env.s(end);
             end
         end
         
@@ -38,77 +41,110 @@ classdef CLS_2DBRRTStar
         % 4. Then new state x_new is added to the search tree.
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             % ***********************Search task ***********************
-%             nodes                     = this.start_nodes;               % Init start nodes
-            tree_forward              = this.TD_sample_pts(1);            % TEMP FOR TEST !!! Init start nodes
-            tree_backward             = this.TD_sample_pts(1);
-            scatter(tree_forward.pose(1), tree_forward.pose(2))
-            scatter(tree_backward.pose(1), tree_backward.pose(2))
-            drawnow
-            num_paths                 = length(tree_forward);                  % Number of path exploring simutaneously
+            trees_forward             = this.start_nodes{1};               % Init start nodes
+            trees_backward            = this.start_nodes{2};
+%             tree_forward              = this.TD_sample_pts(1);            % TEMP FOR TEST !!! Init start nodes
+%             tree_backward             = this.TD_sample_pts(1);
+            num_paths                 = length(trees_forward);                  % Number of path exploring simutaneously
             % ***********************Search task ***********************
             
             % *********************** Parameters ***********************
-%             dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
-            dist_method = 'sq_norm';
+            dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
+%             dist_method = 'sq_norm';
             max_iter                  = 1e4;                            % Max. iteration
             delta_l                   = 0.1;                            % RRT edge length
             delta_l_step              = delta_l/5;                      % RRT edge step size
             eps_neigh                 = 0.2;
             eps_neigh_rewire          = 0.2;
+            num_swap                  = zeros(1,1);
             
             if ~isempty(this.break_pts)
-                s_max                 = this.break_pts(1:end-1);        % Current furthest progress
-            else
-                s_max                 = 0;
+                s_max_forward   = this.break_pts(1:end-1);        % Current furthest progress
+                s_max_backward  = this.break_pts(2:end);
+            else % One path only
+                s_max_forward	= this.Env.s(1);
+                s_max_backward  = this.Env.s(end);
             end
             % *********************** Parameters ***********************
             
             ite                       = 1;
-            Reached_Goal              = false(length(tree_forward), 1);
+            Reached_Goal              = false(size(trees_forward, 2), 1);
             
             while ~all(Reached_Goal)
                 %% Main loop RRT* routine
-                q_rand = this.TD_sample_pts(1); % no goal for now
-%                 [~, q_rand, ~]      = this.Rand_Config(0, s_max, this.s_f);
-%                 q_rand              = node_SE2(q_rand);
+%                 q_rand = this.TD_sample_pts(1); % no goal for now
+                [~, q_rand, ~]      = this.Rand_Config(0, s_max_forward, this.s_f);
+                q_rand              = node_SE2(q_rand);
                 
-                [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, tree_forward, this.NN_method);
-%                 q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
-                q_new               = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+                [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, trees_forward, this.NN_method);
+                q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+%                 q_new               = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
                 
-                % if this.Env.ValidityCheck(q_new)
-                if this.CollisionCheck(q_new)
-                    [q_neighs, q_neighs_costs]  = this.Near(q_new, tree_forward, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
+                if this.Env.ValidityCheck(q_new)
+                % if this.CollisionCheck(q_new)
+                    [q_neighs, q_neighs_costs]  = this.Near(q_new, trees_forward, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
                     q_min                       = this.ChooseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
                     q_new.parent                = q_min;
                     this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
-                    CLS_KDTree.insert(q_new, tree_forward(1));
-                    this.Rewire(q_new, q_min, tree_forward(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
+                    CLS_KDTree.insert(q_new, trees_forward(1));
+                    this.Rewire(q_new, q_min, trees_forward(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
                     
                     % Bidirectional routine
                     % q_connect <- NearestVertex(q_new, tree_backward)
                     % Find the nearest neighbour of q_new in forward tree
                     % in the backward tree
-                    [q_connect, ~, ~]                 = this.Nearest_Neighbour(q_new, tree_backward, this.NN_method);
+                    [q_connect, ~, ~]                 = this.Nearest_Neighbour(q_new, trees_backward, this.NN_method);
                     % edge_new  <- Connect(q_new, q_connect, tree_backward)
                     % Try to connect q_new in the forward tree to q_connect
                     % in the backward tree: q_new --> q_connect
-                    [sigma_sol, cost_sol, this.edges] = this.Connect(q_new, q_connect, tree_backward, delta_l_step, delta_l, eps_neigh, dist_method);
+                    [sigma_sol, cost_sol, this.edges] = this.Connect(q_new, q_connect, trees_backward, delta_l_step, delta_l, eps_neigh, dist_method);
                     if cost_sol < this.cost_best
                         this.sigma_best = sigma_sol;
                         this.cost_best  = cost_sol;
                     end
-                    % SwapTrees(tree_forward, tree_backward)
-                    [tree_forward, tree_backward] = this.SwapTrees(tree_forward, tree_backward);
                     
-                    % Task consistency stuff
-                    if q_new.pose(5) > s_max
-                        s_max = q_new.pose(5);
+                    % SwapTrees(tree_forward, tree_backward)
+                    [trees_forward, trees_backward, num_swap, IsForward] = this.SwapTrees(trees_forward, trees_backward, num_swap);
+                    if IsForward % It is processing forward tree now
+                        if q_new.pose(5) > s_max_forward
+                            s_max_forward = q_new.pose(5);
+                        end
+                        fprintf('Looking at Forward progress: \t %.4f, \t s_max: %.4f\n', q_new.pose(5), s_max_forward);
+                        
+                        % Check if the forward path has arrived the goal
+                        % prior to merging
+                        if round(abs(q_new.pose(5) - this.s_f), 4) < 1e-4
+                            Reached_Goal(1) = true;
+                        end
+                    
+                        % It will process backward tree next cycle
+                        this.NN_method = 'KDTree_backward_progress_sq_norm';
+                        dist_method    = 'backward_progress_sq_norm';
+                        
+                    else % It is processing backward tree now
+                        if q_new.pose(5) < s_max_forward
+                            s_max_forward = q_new.pose(5);
+                        end
+                        fprintf('Looking at Backward progress: \t %.4f, \t s_max: %.4f\n', q_new.pose(5), s_max_forward);
+                        
+                        % Check if the backward path has arrived the start
+                        % prior to merging
+                        if round(abs(q_new.pose(5) - this.s_i), 4) < 1e-4
+                            Reached_Goal(1) = true;
+                        end
+                        
+                        % It will process forward tree next cycle
+                        this.NN_method = 'KDTree_forward_progress_sq_norm';
+                        dist_method    = 'forward_progress_sq_norm';
                     end
+                    
+                    % If a path is returned --> path found
                     if ~isempty(this.sigma_best)
                         Reached_Goal(1) = true;
                     end
-                    fprintf('Looking at progress: %.4f, s_max: %.4f\n', q_new.pose(5), s_max);
+                    
+                    % Lastly also swap the progresses
+                    [s_max_forward, s_max_backward] = this.SwapProgress(s_max_forward, s_max_backward);
                 end
                 ite = ite + 1;
             end
@@ -120,7 +156,18 @@ classdef CLS_2DBRRTStar
             quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
             drawnow
             
-            path = this.sigma_best;
+            if isempty(this.sigma_best)
+                q_end   = node_SE2.copy(q_new);
+                path    = q_end;
+                while ~isempty(q_end.parent)
+                    next_parent = node_SE2.copy(q_end.parent);
+                    path        = [next_parent; path];
+                    q_end       = next_parent;
+                end
+            else
+                path = this.sigma_best;
+            end
+            
             for kdx = length(path):-1:2
                 line([path(kdx-1).pose(1), path(kdx).pose(1)], [path(kdx-1).pose(2), path(kdx).pose(2)], [0,0], 'Color', '#E1701A', 'LineWidth', 4);
             end
@@ -129,17 +176,30 @@ classdef CLS_2DBRRTStar
             drawnow
         end
         
-        function [tree_forward, tree_backward] = SwapTrees(this, tree_forward, tree_backward)
+        function [s_max_forward, s_max_backward] = SwapProgress(this, s_max_forward, s_max_backward)
             %%
+            % Swap max progress
+            temp_s          = s_max_backward;
+            s_max_backward  = s_max_forward;
+            s_max_forward   = temp_s;
+        end
+        
+        function [tree_forward, tree_backward, num_swap, IsForward] = SwapTrees(this, tree_forward, tree_backward, num_swap)
+            %%
+            % Swap trees
             temp_tree       = tree_backward;
             tree_backward   = tree_forward;
             tree_forward    = temp_tree;
+            
+            % Check forward backward
+            num_swap        = num_swap + 1;
+            IsForward       = mod(num_swap, 2);
         end
         
         function [sigma_sol, cost_sol, edges] = Connect(this, q_new, q_connect, tree_backward, delta_l_step, delta_l, eps_neigh, dist_method)
             %%
             % x_new is a point between q_new (T_a) --> q_connect (T_b)
-            x_new         = node_SE2(this.TD_Extend(q_connect, q_new, delta_l_step, delta_l, 'sq_norm'));
+            x_new         = node_SE2(this.Extend(q_connect, q_new, delta_l_step, delta_l, 'sq_norm'));
             % Find the neighbours around x_new (Extend from q_new) in T_b
             [x_neighs, ~] = this.Near(x_new, tree_backward, eps_neigh, 'KDTree_radius_sq_norm');
             
@@ -149,7 +209,7 @@ classdef CLS_2DBRRTStar
             for idx = 1:length(x_neighs)
                 % Try to extend from q_new to x_neigh
                 dist_q_new_x_neigh  = dist_metric.method(x_neighs(idx), q_new, 'sq_norm');
-                x_neigh_check       = node_SE2(this.TD_Extend(x_neighs(idx), q_new, dist_q_new_x_neigh/5, dist_q_new_x_neigh, 'sq_norm'));
+                x_neigh_check       = node_SE2(this.Extend(x_neighs(idx), q_new, dist_q_new_x_neigh/5, dist_q_new_x_neigh, 'sq_norm'));
                 if all(round(x_neigh_check.pose - x_neighs(idx).pose, 10) == 0) % can extend
                     % path cost
                     c_near              = q_new.cost + dist_q_new_x_neigh + x_neighs(idx).cost;
@@ -167,6 +227,7 @@ classdef CLS_2DBRRTStar
                     cost_sol    = C_near_no_collision(jdx);
                     % returns a path linking start --> q_new --> x_neigh --> end
                     sigma_sol   = this.GeneratePath(q_new, X_near_no_collision(jdx));
+                    fprintf("Path merged between progress %.4f, %.4f\n", q_new.pose(5), X_near_no_collision(jdx).pose(5));
                     return
                 end
             end
@@ -233,7 +294,7 @@ classdef CLS_2DBRRTStar
                 else
                     % node is a neighbour
                     % Check if extendable from q_new --> node
-                    q_check = node_SE2(this.TD_Extend(node, q_new, dist/5, dist, dist_method));
+                    q_check = node_SE2(this.Extend(node, q_new, dist/5, dist, dist_method));
                     % If extendable and the cost from start --> q_new --> node
                     % is less than the cost from start to node
                     if all(round(q_check.pose - node.pose, 10) == 0) && dist + q_new.cost < node.cost
@@ -426,12 +487,15 @@ classdef CLS_2DBRRTStar
         end
         
         function [neighbours, costs] = Near(this, pos, nodes, r, method)
+            %%
             if strcmp(method, 'KDTree_radius_sq_norm')
                 [neighbours, costs] = CLS_KDTree.Near_Neighbour(pos, nodes(1), 'sq_norm', r);
                 
             elseif strcmp(method, 'KDTree_radius_forward_progress_sq_norm')
                 [neighbours, costs] = CLS_KDTree.Near_Neighbour(pos, nodes(1), 'forward_progress_sq_norm', r);
                 
+            elseif strcmp(method, 'KDTree_radius_backward_progress_sq_norm')
+                [neighbours, costs] = CLS_KDTree.Near_Neighbour(pos, nodes(1), 'backward_progress_sq_norm', r);
             end
         end
         
@@ -454,8 +518,12 @@ classdef CLS_2DBRRTStar
                 [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'sq_norm', 1);
                 NN_idx = NaN;
                 
-            elseif strcmp(method, 'KDTree_progress_sq_norm')
+            elseif strcmp(method, 'KDTree_forward_progress_sq_norm')
                 [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'forward_progress_sq_norm', 1);
+                NN_idx = NaN;
+                
+            elseif strcmp(method, 'KDTree_backward_progress_sq_norm')
+                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'backward_progress_sq_norm', 1);
                 NN_idx = NaN;
             end
         end

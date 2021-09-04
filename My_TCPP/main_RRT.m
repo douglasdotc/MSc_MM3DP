@@ -17,31 +17,31 @@ robot   = [ ywx / 2,  ywy / 2, 1;
            -ywx / 2,  ywy / 2, 1]';
 
 %% Create Printing Task
-% PrintingTask = Tasks.StraightLinePath(0, 100);
-PrintingTask = Tasks.LPath(100);
-% PrintingTask = Tasks.HPath(2, 100);
-PrintingTask.smooth(0.075);
-PrintingTask.scale([6,6,1])
-PrintingTask.resample(0.01);
-s        = PrintingTask.gett(0.01);
-s        = s./max(s); % normalize
-T        = PrintingTask.toTForm(PrintingTask);
-T(3,4,:) = 0;
-
-% p = Tasks.HPath(2, 100);
-% p.smooth(0.075);
-% p.scale([3, 3, 1]);
-% p.resample(0.001);
-% q = Tasks.UPath(.1);
-% q.scale([0.2 0.05 1]);
-% p.superimpose(q) 
-% PrintingTask=p;
+% % PrintingTask = Tasks.StraightLinePath(0, 100);
+% PrintingTask = Tasks.LPath(100);
+% % PrintingTask = Tasks.HPath(2, 100);
+% PrintingTask.smooth(0.075);
+% PrintingTask.scale([6,6,1])
 % PrintingTask.resample(0.01);
-% s = PrintingTask.gett(0.01);
-% s = s./max(s);
-% T = PrintingTask.toTForm(PrintingTask);
-% T(3, 4, :) = 0;
+% s        = PrintingTask.gett(0.01);
+% s        = s./max(s); % normalize
+% T        = PrintingTask.toTForm(PrintingTask);
+% T(3,4,:) = 0;
 
+
+p = Tasks.HPath(2, 100);
+p.smooth(0.075);
+p.scale([3, 3, 1]);
+p.resample(0.001);
+q = Tasks.UPath(.1);
+q.scale([0.2 0.05 1]);
+p.superimpose(q) 
+PrintingTask=p;
+PrintingTask.resample(0.01);
+s = PrintingTask.gett(0.01);
+s = s./max(s);
+T = PrintingTask.toTForm(PrintingTask);
+T(3, 4, :) = 0;
 
 
 T        = TForm.tformX(T,TForm.DOWN);
@@ -121,6 +121,7 @@ for idx = 1:1
 
     % start_nodes = Multi_sample(Env, break_pts, num_node, false);
     start_nodes{1} = Env.sample_pts(0, num_node); % TEMP
+    start_nodes{2} = Env.sample_pts(1, num_node); % TEMP
     %% RRT*
 %     RRTStar     = CLS_2DRRTStar(Env, start_nodes); % , break_pts);
     BRRTStar = CLS_2DBRRTStar(Env, start_nodes); % , break_pts);
