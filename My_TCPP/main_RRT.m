@@ -19,6 +19,7 @@ robot   = [ ywx / 2,  ywy / 2, 1;
 %% Create Printing Task
 % PrintingTask = Tasks.StraightLinePath(0, 100);
 PrintingTask = Tasks.LPath(100);
+% PrintingTask = Tasks.HPath(2, 100);
 PrintingTask.smooth(0.075);
 PrintingTask.scale([6,6,1])
 PrintingTask.resample(0.01);
@@ -26,6 +27,23 @@ s        = PrintingTask.gett(0.01);
 s        = s./max(s); % normalize
 T        = PrintingTask.toTForm(PrintingTask);
 T(3,4,:) = 0;
+
+% p = Tasks.HPath(2, 100);
+% p.smooth(0.075);
+% p.scale([3, 3, 1]);
+% p.resample(0.001);
+% q = Tasks.UPath(.1);
+% q.scale([0.2 0.05 1]);
+% p.superimpose(q) 
+% PrintingTask=p;
+% PrintingTask.resample(0.01);
+% s = PrintingTask.gett(0.01);
+% s = s./max(s);
+% T = PrintingTask.toTForm(PrintingTask);
+% T(3, 4, :) = 0;
+
+
+
 T        = TForm.tformX(T,TForm.DOWN);
 PrintingTask.plot();
 
@@ -65,7 +83,7 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 % end
 
 %% Obstacles
-Obstacles_Poly = Obstacles(1.5, IsDEBUG);
+Obstacles_Poly = Obstacles(1.5, false);
 Obstacles_Poly = {};
 
 %% Create Task Environment
@@ -77,9 +95,9 @@ Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_P
 
 IRM_overlap_threshold  = 0.5;
 task_ROI_opening_angle = 180;
-break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold, task_ROI_opening_angle);
-break_pts              = [s(1); break_pts; s(end)];
-  
+% break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold, task_ROI_opening_angle);
+% break_pts              = [s(1); break_pts; s(end)];
+
 %% TEST
 if IsDEBUG
     axes(ax1);
@@ -100,12 +118,15 @@ for idx = 1:1
 %             quiver(poses(:,1), poses(:,2), poses(:,3), poses(:,4))
 %         end
 %     end
-    start_nodes = Multi_sample(Env, break_pts, num_node, IsDEBUG);
+
+    % start_nodes = Multi_sample(Env, break_pts, num_node, false);
+    start_nodes{1} = Env.sample_pts(0, num_node); % TEMP
     %% RRT*
-    RRTStar     = CLS_2DRRTStar(Env, start_nodes, break_pts);
-%     RRTStar     = CLS_RRTStar(Env, start_nodes, break_pts);
+%     RRTStar     = CLS_2DRRTStar(Env, start_nodes); % , break_pts);
+    BRRTStar = CLS_2DBRRTStar(Env, start_nodes); % , break_pts);
     tic
-        [path, ite] = RRTStar.RRT_Star;
+%         [path, ite] = RRTStar.RRT_Star;
+        [path, ite] = BRRTStar.BRRT_Star;
     time = toc;
     ite_arr  = [ite_arr, ite];
     time_arr = [time_arr, time];

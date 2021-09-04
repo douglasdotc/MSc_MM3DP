@@ -129,7 +129,7 @@ classdef CLS_KDTree
             end
         end
         
-        function kNN = Near_Neighbour(pt, node, dist_method, r, varargin)
+        function [neighs, costs] = Near_Neighbour(pt, node, dist_method, r, varargin)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Recurrsively find the nearest neighbour with KD tree structured
         % node
@@ -146,10 +146,12 @@ classdef CLS_KDTree
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             if isempty(varargin)
                 current_dim  = 1;
-                kNN          = [];
+                neighs       = [];
+                costs        = [];
             else
                 current_dim  = varargin{1};
-                kNN          = varargin{2};
+                neighs       = varargin{2};
+                costs        = varargin{3};
             end
             n_dim = size(pt.pose, 2);
             
@@ -160,8 +162,9 @@ classdef CLS_KDTree
             
             % Found point nearer than the nearest:
             dist = dist_metric.method(pt, node, dist_method);
-            if any(dist < r)
-                kNN = [kNN; node_SE2.copy(node)];
+            if any(dist <= r)
+                neighs = [neighs; node_SE2.copy(node)];
+                costs  = [costs; node.cost];
             end
             
             % Calculate next dimension
@@ -170,15 +173,15 @@ classdef CLS_KDTree
             % Visit subtree
             if pt.pose(current_dim) < node.pose(current_dim)
                 % Go left side
-                kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, kNN);
+                [neighs, costs] = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, neighs, costs);
                 if r >= abs(pt.pose(current_dim) - node.pose(current_dim))
-                	kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, kNN);
+                	[neighs, costs] = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, neighs, costs);
                 end
             else
                 % Go right side
-                kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, kNN);
+                [neighs, costs] = CLS_KDTree.Near_Neighbour(pt, node.KDT_Rchild, dist_method, r, next_dim, neighs, costs);
                 if r >= abs(pt.pose(current_dim) - node.pose(current_dim))
-                    kNN = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, kNN);
+                    [neighs, costs] = CLS_KDTree.Near_Neighbour(pt, node.KDT_Lchild, dist_method, r, next_dim, neighs, costs);
                 end
             end
         end

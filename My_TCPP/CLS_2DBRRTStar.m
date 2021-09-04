@@ -1,17 +1,19 @@
-classdef CLS_2DRRTStar
+classdef CLS_2DBRRTStar
     properties
         Env                                         % Environment that RRT* is exploring with
         start_nodes                                 % n sampled starting nodes with structure node_SE2
         edges
-%         NN_method = 'KDTree_sq_norm';
-        NN_method = 'KDTree_progress_sq_norm';      % Nearest Neighbour search method
+        NN_method = 'KDTree_sq_norm';
+%         NN_method = 'KDTree_progress_sq_norm';      % Nearest Neighbour search method
         s_f                                         % Ending progress (can be a number other than 1)
         break_pts                                   % break points of the whole task
+        cost_best  = Inf;
+        sigma_best = [];
         IsDEBUG                                     % Debug Flag
     end
     
     methods
-        function this = CLS_2DRRTStar(Env, start_nodes, varargin)
+        function this = CLS_2DBRRTStar(Env, start_nodes, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env           = Env;
             this.IsDEBUG       = this.Env.IsDEBUG;
@@ -24,7 +26,7 @@ classdef CLS_2DRRTStar
             end
         end
         
-        function [path, ite] = RRT_Star(this)
+        function [path, ite] = BRRT_Star(this)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % RRT* algorithm begins by initializing a tree T = (V, E) with a
         % vertex at the initial configuration (i.e. V = {q_I}). 
@@ -36,14 +38,18 @@ classdef CLS_2DRRTStar
         % 4. Then new state x_new is added to the search tree.
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             % ***********************Search task ***********************
-            nodes                     = this.start_nodes;               % Init start nodes
-%             nodes                     = this.TD_sample_pts(1);            % TEMP FOR TEST !!! Init start nodes
-            num_paths                 = length(nodes);                  % Number of path exploring simutaneously
+%             nodes                     = this.start_nodes;               % Init start nodes
+            tree_forward              = this.TD_sample_pts(1);            % TEMP FOR TEST !!! Init start nodes
+            tree_backward             = this.TD_sample_pts(1);
+            scatter(tree_forward.pose(1), tree_forward.pose(2))
+            scatter(tree_backward.pose(1), tree_backward.pose(2))
+            drawnow
+            num_paths                 = length(tree_forward);                  % Number of path exploring simutaneously
             % ***********************Search task ***********************
             
             % *********************** Parameters ***********************
-            dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
-%             dist_method = 'sq_norm';
+%             dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
+            dist_method = 'sq_norm';
             max_iter                  = 1e4;                            % Max. iteration
             delta_l                   = 0.1;                            % RRT edge length
             delta_l_step              = delta_l/5;                      % RRT edge step size
@@ -58,30 +64,48 @@ classdef CLS_2DRRTStar
             % *********************** Parameters ***********************
             
             ite                       = 1;
-            Reached_Goal              = false(length(nodes), 1);
+            Reached_Goal              = false(length(tree_forward), 1);
             
             while ~all(Reached_Goal)
-                %% Main loop
-%                 q_rand = this.TD_sample_pts(1); % no goal for now
-                [~, q_rand, ~]      = this.Rand_Config(0, s_max, this.s_f);
-                q_rand              = node_SE2(q_rand);
+                %% Main loop RRT* routine
+                q_rand = this.TD_sample_pts(1); % no goal for now
+%                 [~, q_rand, ~]      = this.Rand_Config(0, s_max, this.s_f);
+%                 q_rand              = node_SE2(q_rand);
                 
-                [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, nodes{1}, this.NN_method);
-                q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
-%                 q_new = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+                [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, tree_forward, this.NN_method);
+%                 q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+                q_new               = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
                 
-                if this.Env.ValidityCheck(q_new)
-                    [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{1}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
-                    q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
+                % if this.Env.ValidityCheck(q_new)
+                if this.CollisionCheck(q_new)
+                    [q_neighs, q_neighs_costs]  = this.Near(q_new, tree_forward, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
+                    q_min                       = this.ChooseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
                     q_new.parent                = q_min;
                     this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
-                    CLS_KDTree.insert(q_new, nodes{1}(1));
-                    this.Rewire(q_new, q_min, nodes{1}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
+                    CLS_KDTree.insert(q_new, tree_forward(1));
+                    this.Rewire(q_new, q_min, tree_forward(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
                     
+                    % Bidirectional routine
+                    % q_connect <- NearestVertex(q_new, tree_backward)
+                    % Find the nearest neighbour of q_new in forward tree
+                    % in the backward tree
+                    [q_connect, ~, ~]                 = this.Nearest_Neighbour(q_new, tree_backward, this.NN_method);
+                    % edge_new  <- Connect(q_new, q_connect, tree_backward)
+                    % Try to connect q_new in the forward tree to q_connect
+                    % in the backward tree: q_new --> q_connect
+                    [sigma_sol, cost_sol, this.edges] = this.Connect(q_new, q_connect, tree_backward, delta_l_step, delta_l, eps_neigh, dist_method);
+                    if cost_sol < this.cost_best
+                        this.sigma_best = sigma_sol;
+                        this.cost_best  = cost_sol;
+                    end
+                    % SwapTrees(tree_forward, tree_backward)
+                    [tree_forward, tree_backward] = this.SwapTrees(tree_forward, tree_backward);
+                    
+                    % Task consistency stuff
                     if q_new.pose(5) > s_max
                         s_max = q_new.pose(5);
                     end
-                    if round(abs(q_new.pose(5) - this.s_f), 4) < 1e-4
+                    if ~isempty(this.sigma_best)
                         Reached_Goal(1) = true;
                     end
                     fprintf('Looking at progress: %.4f, s_max: %.4f\n', q_new.pose(5), s_max);
@@ -96,21 +120,85 @@ classdef CLS_2DRRTStar
             quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
             drawnow
             
-            % draw path
-            q_end   = node_SE2.copy(q_new);
-            path    = q_end;
-            while ~isempty(q_end.parent)
-                next_parent = node_SE2.copy(q_end.parent);
-                path        = [next_parent; path];
-                q_end       = next_parent;
-            end
-            
+            path = this.sigma_best;
             for kdx = length(path):-1:2
                 line([path(kdx-1).pose(1), path(kdx).pose(1)], [path(kdx-1).pose(2), path(kdx).pose(2)], [0,0], 'Color', '#E1701A', 'LineWidth', 4);
             end
             POSES = this.Env.Extract_item(path, 'pose');
             quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 'Color', '#F7A440', 'LineWidth', 2);
             drawnow
+        end
+        
+        function [tree_forward, tree_backward] = SwapTrees(this, tree_forward, tree_backward)
+            %%
+            temp_tree       = tree_backward;
+            tree_backward   = tree_forward;
+            tree_forward    = temp_tree;
+        end
+        
+        function [sigma_sol, cost_sol, edges] = Connect(this, q_new, q_connect, tree_backward, delta_l_step, delta_l, eps_neigh, dist_method)
+            %%
+            % x_new is a point between q_new (T_a) --> q_connect (T_b)
+            x_new         = node_SE2(this.TD_Extend(q_connect, q_new, delta_l_step, delta_l, 'sq_norm'));
+            % Find the neighbours around x_new (Extend from q_new) in T_b
+            [x_neighs, ~] = this.Near(x_new, tree_backward, eps_neigh, 'KDTree_radius_sq_norm');
+            
+            X_near_no_collision = []; % store involved x_near
+            C_near_no_collision = []; % store the cost of the paths
+            % for every neighbour calculate the cost of start --> q_new --> x_neigh --> end
+            for idx = 1:length(x_neighs)
+                % Try to extend from q_new to x_neigh
+                dist_q_new_x_neigh  = dist_metric.method(x_neighs(idx), q_new, 'sq_norm');
+                x_neigh_check       = node_SE2(this.TD_Extend(x_neighs(idx), q_new, dist_q_new_x_neigh/5, dist_q_new_x_neigh, 'sq_norm'));
+                if all(round(x_neigh_check.pose - x_neighs(idx).pose, 10) == 0) % can extend
+                    % path cost
+                    c_near              = q_new.cost + dist_q_new_x_neigh + x_neighs(idx).cost;
+                    X_near_no_collision = [X_near_no_collision; x_neighs(idx)];
+                    C_near_no_collision = [C_near_no_collision; c_near];
+                end
+            end
+            [C_near_no_collision, sorting_idxs] = sort(C_near_no_collision);
+            X_near_no_collision                 = X_near_no_collision(sorting_idxs);
+            
+            % Choose a parent in x_nieghs with minimum cost for q_new
+            for jdx = 1:length(X_near_no_collision)
+                if C_near_no_collision(jdx) < this.cost_best
+                    edges       = [this.edges; [q_new.pose, X_near_no_collision(jdx).pose]];
+                    cost_sol    = C_near_no_collision(jdx);
+                    % returns a path linking start --> q_new --> x_neigh --> end
+                    sigma_sol   = this.GeneratePath(q_new, X_near_no_collision(jdx));
+                    return
+                end
+            end
+            edges     = this.edges;
+            sigma_sol = [];
+            cost_sol  = Inf;
+        end
+        
+        function sigma_sol = GeneratePath(this, q_new, x_neigh)
+            %%
+            path_A = []; % path from start to q_new
+            path_B = []; % path from goal to x_neigh
+            
+            % For path_A
+            q_end  = node_SE2.copy(q_new);
+            path_A = q_end;
+            while ~isempty(q_end.parent)
+                next_parent = node_SE2.copy(q_end.parent);
+                path_A      = [next_parent; path_A];
+                q_end       = next_parent;
+            end
+            
+            % For path_B
+            q_end  = node_SE2.copy(x_neigh);
+            path_B = q_end;
+            while ~isempty(q_end.parent)
+                next_parent = node_SE2.copy(q_end.parent);
+                path_B      = [next_parent; path_B];
+                q_end       = next_parent;
+            end
+            
+            sigma_sol = [path_A; flip(path_B)];
         end
         
         function Rewire(this, q_new, q_min, node, dist_method, r, varargin)
@@ -145,7 +233,7 @@ classdef CLS_2DRRTStar
                 else
                     % node is a neighbour
                     % Check if extendable from q_new --> node
-                    q_check = node_SE2(this.Extend(node, q_new, dist/5, dist, dist_method));
+                    q_check = node_SE2(this.TD_Extend(node, q_new, dist/5, dist, dist_method));
                     % If extendable and the cost from start --> q_new --> node
                     % is less than the cost from start to node
                     if all(round(q_check.pose - node.pose, 10) == 0) && dist + q_new.cost < node.cost
@@ -183,7 +271,7 @@ classdef CLS_2DRRTStar
             end
         end
         
-        function q_min = ChoseParent(this, q_new, q_nearest, q_neighs, q_neighs_costs, dist_method)
+        function q_min = ChooseParent(this, q_new, q_nearest, q_neighs, q_neighs_costs, dist_method)
             %%
             q_nearest_neighs        = [q_nearest; q_neighs];
             q_nearest_neighs_costs  = [q_nearest.cost; q_neighs_costs];
