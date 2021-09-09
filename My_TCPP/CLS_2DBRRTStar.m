@@ -73,7 +73,7 @@ classdef CLS_2DBRRTStar
             while ~all(Reached_Goal)
                 %% Main loop RRT* routine
 %                 q_rand = this.TD_sample_pts(1); % no goal for now
-                [~, q_rand, ~]      = this.Rand_Config(0, s_max_forward, this.s_f);
+                [~, q_rand, ~]      = this.Rand_Config(this.s_i, s_max_forward, this.s_f);
                 q_rand              = node_SE2(q_rand);
                 
                 [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, trees_forward, this.NN_method);
