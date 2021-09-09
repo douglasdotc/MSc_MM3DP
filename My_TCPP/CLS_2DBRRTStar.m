@@ -80,7 +80,7 @@ classdef CLS_2DBRRTStar
                 q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
 %                 q_new               = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
                 
-                if this.Env.ValidityCheck(q_new)
+                if this.Env.ValidityCheck(q_new, dist_method)
                 % if this.CollisionCheck(q_new)
                     [q_neighs, q_neighs_costs]  = this.Near(q_new, trees_forward, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
                     q_min                       = this.ChooseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
@@ -473,7 +473,7 @@ classdef CLS_2DBRRTStar
                     assert(sum(new_pt.pose ~= from_pt.pose) > 0)
                 end
                 
-                if ~this.Env.ValidityCheck(new_pt) || dist_metric.method(new_pt, from_pt, dist_method) > delta_l
+                if ~this.Env.ValidityCheck(new_pt, dist_method) || dist_metric.method(new_pt, from_pt, dist_method) > delta_l
                     % Revert, save, return
                     % angle should add/subtract in radians
                     angle       = atan2(new_pt.pose(4), new_pt.pose(3)) - line_step(3);

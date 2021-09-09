@@ -56,7 +56,7 @@ classdef CLS_ENV_SE2 < handle
             end
         end
         
-        function IsValid = ValidityCheck(this, node)
+        function IsValid = ValidityCheck(this, node, varargin)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Check if the point pt is valid
         % 1. Is in IRM
@@ -100,8 +100,20 @@ classdef CLS_ENV_SE2 < handle
                 s_idx = 1;
             end
             
-            que_x       = this.task_coord(1:s_idx, 1);
-            que_y       = this.task_coord(1:s_idx, 2);
+            if isempty(varargin)
+                que_x       = this.task_coord(1:s_idx, 1);
+                que_y       = this.task_coord(1:s_idx, 2);
+            else
+                Forward_or_Backward = varargin{1};
+                if strcmp(Forward_or_Backward, 'forward_progress_sq_norm') || strcmp(Forward_or_Backward, 'sq_norm')
+                    que_x       = this.task_coord(1:s_idx, 1);
+                    que_y       = this.task_coord(1:s_idx, 2);
+                elseif strcmp(Forward_or_Backward, 'backward_progress_sq_norm')
+                    que_x       = this.task_coord(s_idx:end, 1);
+                    que_y       = this.task_coord(s_idx:end, 2);
+                end
+            end
+            
             IsCollide   = any(inpolygon(que_x, que_y, Robot_Poly(:,1), Robot_Poly(:,2)));
             if IsCollide
                 if this.IsDEBUG
