@@ -146,7 +146,7 @@ classdef CLS_2DBRRTStar
                     
                     % If a path is returned --> path found
                     if ~isempty(this.cost_store{1}) 
-                        if size(this.cost_store{1}, 2) >= 10 && mean(abs(this.cost_store{1}(end - 6:end - 1) - this.cost_store{1}(end - 5:end))) <= Bi_cost_threshold
+                        if size(this.cost_store{1}, 2) >= 5 && mean(abs(this.cost_store{1}(end - 3:end - 1) - this.cost_store{1}(end - 2:end))) <= Bi_cost_threshold
                             this.cost_best  = this.cost_store{1}(end);
                             this.sigma_best = this.sigma_store{1,end};
                             Reached_Goal(1) = true;
@@ -184,9 +184,6 @@ classdef CLS_2DBRRTStar
             POSES = this.Env.Extract_item(path, 'pose');
             quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 'Color', '#F7A440', 'LineWidth', 2);
             drawnow
-            
-            disp("cost store:")
-            disp(this.cost_store)
         end
         
         function [s_max_forward, s_max_backward] = SwapProgress(this, s_max_forward, s_max_backward)
@@ -240,7 +237,7 @@ classdef CLS_2DBRRTStar
                     cost_sol    = C_near_no_collision(jdx);
                     % returns a path linking start --> q_new --> x_neigh --> end
                     sigma_sol   = this.GeneratePath(q_new, X_near_no_collision(jdx));
-                    fprintf("Path merged between progress %.4f, %.4f with cost %.4f\n", q_new.pose(5), X_near_no_collision(jdx).pose(5), cost_sol);
+                    fprintf("Path merged between progress %.4f, %.4f with cost\n", q_new.pose(5), X_near_no_collision(jdx).pose(5));
                     return
                 end
             end
