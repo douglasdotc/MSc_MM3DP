@@ -54,7 +54,7 @@ classdef CLS_2DBRRTStar
             dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
 %             dist_method = 'sq_norm';
             max_iter                  = 1e4;                            % Max. iteration
-            Bi_cost_threshold         = 0.5;
+            Bi_cost_threshold         = 0.05;
             delta_l                   = 0.1;                            % RRT edge length
             delta_l_step              = delta_l/5;                      % RRT edge step size
             eps_neigh                 = 0.2;
