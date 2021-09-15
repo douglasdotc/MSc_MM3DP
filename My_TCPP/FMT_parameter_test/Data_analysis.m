@@ -9,6 +9,7 @@ path_cost_rec = [];
 radius_max_rec = [];
 radius_mode_rec = [];
 radius_mean_rec = [];
+radius_std_rec = [];
 
 for k = 1:length(matFiles)
   baseFileName = matFiles(k).name;
@@ -27,7 +28,8 @@ for k = 1:length(matFiles)
   radius_max_rec         = [radius_max_rec, max(thisData.record(:,4))];
   radius_mode_rec        = [radius_mode_rec, mode(thisData.record(:,4))];
   radius_mean_rec        = [radius_mean_rec, mean(thisData.record(:,4))];
-  
+  radius_std_rec         = [radius_std_rec, std(thisData.record(:,4))];
+      
   if length(thisData.paths) == 1
       ax1 = figure(1);
       plot(thisData.record(:,4))
@@ -36,11 +38,13 @@ for k = 1:length(matFiles)
       xlabel('Number of iterations')
       ylabel('Radius (m)')
       drawnow
-      saveas(ax1, "FMT_ite_vs_radius_"+string(sampling_intensity)+"_r"+string(radius)+".fig")
+      saveas(ax1, "FMT_ite_vs_radius_"+string(sampling_intensity)+"_r"+string(radius)+".png")
       hold off
       delete(ax1)
   end
 end
+
+
 
 ax1 = figure(1);
 f = fit([sampling_intensity_rec',radius_rec'],time_rec', 'cubicinterp');
@@ -128,5 +132,20 @@ ylabel('Specified radius (m)')
 h = colorbar;
 ylabel(h, 'Mean of radius (m)')
 saveas(ax1, "FMT_sample_int_vs_radius_vs_meanr.fig")
+hold off
+delete(ax1)
+
+ax1 = figure(1);
+f = fit([sampling_intensity_rec',radius_rec'],radius_std_rec', 'cubicinterp');
+zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
+plot(f)
+hold on
+box on
+xlabel('Sampling intensity (unit/progress)')
+ylabel('Specified radius (m)')
+zlabel('Standard deviation of radius (m)')
+h = colorbar;
+ylabel(h, 'Standard deviation of radius (m)')
+saveas(ax1, "FMT_sample_int_vs_radius_vs_stdr.fig")
 hold off
 delete(ax1)
