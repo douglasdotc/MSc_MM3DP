@@ -2,7 +2,7 @@ close all
 clear all
 IsDEBUG = true;
 if IsDEBUG
-    ax1 = figure(1);
+%     ax1 = figure(1);
 end
 hold on
 
@@ -40,11 +40,11 @@ T = PrintingTask.toTForm(PrintingTask);
 T(3, 4, :) = 0;
 
 T        = TForm.tformX(T,TForm.DOWN);
-PrintingTask.plot();
-box on
-hold on
-xlabel('x (m)')
-ylabel('y (m)')
+% PrintingTask.plot();
+% box on
+% hold on
+% xlabel('x (m)')
+% ylabel('y (m)')
 
 %% IRM
 min_task_robot_dist = 0.15;
@@ -53,7 +53,7 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 %% Obstacles
 Obstacles_Poly = Obstacles(1.5, false);
 Obstacles_Poly = {};
-drawnow
+% drawnow
 %% Create Task Environment
 Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
 IRM_overlap_threshold  = 0.5;
@@ -62,20 +62,36 @@ task_ROI_opening_angle = 180;
 % break_pts              = [s(1); break_pts; s(end)];
 ite_arr  = [];
 time_arr = [];
-
+sampling_intensity_rec = [];
+r_search_rec = [];
+path_len_rec = [];
 % if IsDEBUG
 %     axes(ax1);
 % end
-sampling_intensity  = 2;
-r_search            = 0.1;
-max_trial           = 10;
 
-for idx = 1:1
-    FMTStar     = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial);
-    [path, ite, cost, time, record] = FMTStar.FMT_Star;
-    
-    ite_arr  = [ite_arr, ite];
-    time_arr = [time_arr, time];
+% sampling_intensity  = 1;
+% r_search            = 0.1;
+max_trial           = 10;
+parfor sampling_intensity = 1:20
+    for r_search = 0.1:0.05:0.5
+        ax1 = figure(1); %
+        PrintingTask.plot(); %
+        box on %
+        hold on %
+        xlabel('x (m)') %
+        ylabel('y (m)') %
+        drawnow %
+        FMTStar     = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial);
+        [path, ite, cost, time, record] = FMTStar.FMT_Star;
+        saveas(ax1, "FMT_sample_int_"+string(sampling_intensity)+"_r"+string(r_search)+".fig")
+        ite_arr  = [ite_arr, ite];
+        time_arr = [time_arr, time];
+        r_search_rec = [r_search_rec, r_search];
+        sampling_intensity_rec = [sampling_intensity_rec, sampling_intensity];
+        path_len_rec = [path_len_rec, length(path)];
+        hold off %
+        delete(ax1); %
+    end
 end
 % scatter(ite_arr, time_arr)
 % xlabel('Number of iterations')

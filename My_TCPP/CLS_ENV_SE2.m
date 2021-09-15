@@ -387,10 +387,10 @@ classdef CLS_ENV_SE2 < handle
             obs_break_pts_idxs  = this.Merge_wIRM(progress_idxs, IRM_overlap_threshold);     % 4. If IRM overlap ?% up & availability > ?% --> merge
             
             % Consider task
-            task_break_pts_idxs = this.TaskNavigate(task_ROI_opening_angle);
+%             task_break_pts_idxs = this.TaskNavigate(task_ROI_opening_angle);
             
             % Merge break points
-            break_pt_idxs       = sort([obs_break_pts_idxs, task_break_pts_idxs]);
+            break_pt_idxs       = sort(obs_break_pts_idxs);% , task_break_pts_idxs]);
             break_pts           = this.s(break_pt_idxs);
         end
         

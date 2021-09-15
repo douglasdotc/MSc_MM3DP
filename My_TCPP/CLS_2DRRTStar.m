@@ -59,7 +59,7 @@ classdef CLS_2DRRTStar
             
             ite                       = 1;
             Reached_Goal              = false(length(nodes), 1);
-            
+            stall_count               = 0;
             while ~all(Reached_Goal)
                 %% Main loop
 %                 q_rand = this.TD_sample_pts(1); % no goal for now
@@ -80,11 +80,16 @@ classdef CLS_2DRRTStar
                     
                     if q_new.pose(5) > s_max
                         s_max = q_new.pose(5);
+                        stall_count = 0;
                     end
+                    if round(q_new.pose(5) - s_max, 10) < 1e-4
+                        stall_count = stall_count + 1;
+                    end
+                    
                     if round(abs(q_new.pose(5) - this.s_f), 4) < 1e-4
                         Reached_Goal(1) = true;
                     end
-                    fprintf('Looking at progress: %.4f, s_max: %.4f\n', q_new.pose(5), s_max);
+                    fprintf('Looking at progress: %.4f \t|s_max: %.4f \t| stall_count %d\n', q_new.pose(5), s_max, stall_count);
                 end
                 ite = ite + 1;
             end

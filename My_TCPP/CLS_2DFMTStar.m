@@ -3,6 +3,7 @@ classdef CLS_2DFMTStar
         Env                                         % Environment that RRT* is exploring with
         sampling_intensity                          % Number of points that will sample in each IRM
         r_search
+        r_search_original
         s_f                                         % Ending progress (can be a number other than 1)
         max_trial                                   % maximum number of trials for a progress, skip this point of progress when reached
         break_pts                                   % break points of the whole task
@@ -24,6 +25,7 @@ classdef CLS_2DFMTStar
             this.Env                = Env;
             this.sampling_intensity = sampling_intensity;
             this.r_search           = r_search;
+            this.r_search_original  = r_search;
             this.max_trial          = max_trial;
             this.IsDEBUG            = this.Env.IsDEBUG;
             if ~isempty(varargin)
@@ -60,6 +62,7 @@ classdef CLS_2DFMTStar
             fprintf("FMT* search done in %.4f sec, %d iterations with path cost %.4f and %d total number of path nodes.\n", time, ite, total_cost, sum(num_path_nodes));
             fprintf("number of path nodes break down:\n");
             disp(num_path_nodes)
+            save("FMT_sample_int_"+string(this.sampling_intensity)+"_r"+string(this.r_search_original)+".mat");
         end
         
         function [paths, ite, record] = Forward_FMT_Star(this)
@@ -101,6 +104,7 @@ classdef CLS_2DFMTStar
             dist_method  = 'forward_progress_sq_norm';
             % dist_method  = 'sq_norm';
             ite           = 1;
+            stall_count   = 0;
             record        = [];
             
             % Main loop
@@ -141,7 +145,7 @@ classdef CLS_2DFMTStar
                     break
                 end
                 if isempty(this.V_open)
-                    fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search);
+                    fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f \t | stall_count %d \t| s_max %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max);
                     fprintf("V_open is empty, search for new start in V_unvisited...\n")
                     if ~isempty(z.parent) % At least have two nodes
                         path_store      = [path_store; z]; % store section of path
@@ -154,25 +158,34 @@ classdef CLS_2DFMTStar
                     z               = node_SE2.deep_copy(this.V_unvisited(un_idx));
                     
                     % Record size:
-                    record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search];
+                    record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max];
                 else
-                    fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search);
+                    fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f \t | stall_count %d \t| s_max %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max);
                     z = this.Config(s_max);
                     
                     % Record size:
-                    record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search];
+                    record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max];
                 end
                 
                 if z.pose(5) > s_max
                     s_max = z.pose(5);
+                    stall_count = 0;
                 end
-                if this.r_search > 0.5
-                    this.r_search = 0.5;
+                
+                if round(z.pose(5) - s_max, 10) < 1e-10
+                    stall_count = stall_count + 1;
+                end
+                
+                if this.r_search > this.r_search_original
+                    this.r_search = this.r_search_original;
                 end
                 ite = ite + 1;
             end
-            path_store = [path_store; z]; % store the last section
-            this.E{end + 1} = temp_E;
+            
+            if ~isempty(z.parent)
+                path_store = [path_store; z]; % store the last section
+                this.E{end + 1} = temp_E;
+            end
             
             if this.IsDEBUG % Draw tree:
                 if ~isempty(this.E)
@@ -185,7 +198,6 @@ classdef CLS_2DFMTStar
                     end
                 end
             end
-            this.E = [];
             
             % Trace path
             for pdx = 1:length(path_store)
@@ -234,7 +246,7 @@ classdef CLS_2DFMTStar
         
         function [N_nodes, dists, r] = Near(this, nodes, pt, r, dist_method)
             %%
-            r_inc = 0.1;
+            r_inc = 0.01;
             m_nodes = this.DeleteNode(nodes, pt);
             dists   = dist_metric.method(pt, m_nodes, dist_method);
             N_nodes = m_nodes(dists <= r);

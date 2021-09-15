@@ -4,7 +4,7 @@ clear all
 
 IsDEBUG = true;
 if IsDEBUG
-    ax1 = subplot(1,2,1);
+    ax1 = figure(1);
 end
 hold on
 
@@ -17,35 +17,39 @@ robot   = [ ywx / 2,  ywy / 2, 1;
            -ywx / 2,  ywy / 2, 1]';
 
 %% Create Printing Task
-% % PrintingTask = Tasks.StraightLinePath(0, 100);
-% PrintingTask = Tasks.LPath(100);
-% % PrintingTask = Tasks.HPath(2, 100);
-% PrintingTask.smooth(0.075);
-% PrintingTask.scale([6,6,1])
-% PrintingTask.resample(0.01);
-% s        = PrintingTask.gett(0.01);
-% s        = s./max(s); % normalize
-% T        = PrintingTask.toTForm(PrintingTask);
-% T(3,4,:) = 0;
-
-
-p = Tasks.HPath(2, 100);
-p.smooth(0.075);
-p.scale([3, 3, 1]);
-p.resample(0.001);
-q = Tasks.UPath(.1);
-q.scale([0.2 0.05 1]);
-p.superimpose(q) 
-PrintingTask=p;
+% PrintingTask = Tasks.StraightLinePath(0, 100);
+PrintingTask = Tasks.LPath(100);
+% PrintingTask = Tasks.HPath(2, 100);
+PrintingTask.smooth(0.075);
+PrintingTask.scale([6,6,1])
 PrintingTask.resample(0.01);
-s = PrintingTask.gett(0.01);
-s = s./max(s);
-T = PrintingTask.toTForm(PrintingTask);
-T(3, 4, :) = 0;
+s        = PrintingTask.gett(0.01);
+s        = s./max(s); % normalize
+T        = PrintingTask.toTForm(PrintingTask);
+T(3,4,:) = 0;
+
+
+% p = Tasks.HPath(2, 100);
+% p.smooth(0.075);
+% p.scale([3, 3, 1]);
+% p.resample(0.001);
+% q = Tasks.UPath(.1);
+% q.scale([0.2 0.05 1]);
+% p.superimpose(q) 
+% PrintingTask=p;
+% PrintingTask.resample(0.01);
+% s = PrintingTask.gett(0.01);
+% s = s./max(s);
+% T = PrintingTask.toTForm(PrintingTask);
+% T(3, 4, :) = 0;
 
 
 T        = TForm.tformX(T,TForm.DOWN);
 PrintingTask.plot();
+box on
+hold on
+xlabel('x (m)')
+ylabel('y (m)')
 
 %% Boundaries
 % x_lim = [min(T(1, 4, :)) - 2, max(T(1, 4, :)) + 2];
@@ -83,8 +87,8 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 % end
 
 %% Obstacles
-Obstacles_Poly = Obstacles(1.5, false);
-Obstacles_Poly = {};
+Obstacles_Poly = Obstacles(1.5, IsDEBUG);
+% Obstacles_Poly = {};
 
 %% Create Task Environment
 Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
@@ -97,11 +101,10 @@ IRM_overlap_threshold  = 0.5;
 task_ROI_opening_angle = 180;
 % break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold, task_ROI_opening_angle);
 % break_pts              = [s(1); break_pts; s(end)];
-
 %% TEST
-if IsDEBUG
-    axes(ax1);
-end
+% if IsDEBUG
+%     axes(ax1);
+% end
 
 ite_arr  = [];
 time_arr = [];
