@@ -1,4 +1,4 @@
-classdef CLS_2DFMTStar
+classdef CLS_2DLFMTStar
     properties
         Env                                         % Environment that RRT* is exploring with
         sampling_intensity                          % Number of points that will sample in each IRM
@@ -22,7 +22,7 @@ classdef CLS_2DFMTStar
     end
     
     methods
-        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial, varargin)
+        function this = CLS_2DLFMTStar(Env, sampling_intensity, r_search, max_trial, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env                = Env;
             this.sampling_intensity = sampling_intensity;
@@ -94,9 +94,7 @@ classdef CLS_2DFMTStar
 %                 this.V = [this.V; this.TD_sample_pts(1)];
 %             end
             for s_idx = 1:length(this.Env.s)
-                for idx = 1:this.sampling_intensity
-                    this.V = [this.V; this.sample_pts(this.Env.s(s_idx), 1)];
-                end
+                this.V = this.sample_pts(this.Env.s(s_idx), this.sampling_intensity, this.V);
             end
             fprintf('done\n');
             
@@ -104,10 +102,10 @@ classdef CLS_2DFMTStar
 %             scatter(poses(:,1), poses(:,2))
             path_store          = [];
             paths               = {};
-            this.V              = [x_init; this.V];
+            this.V_unvisited    = node_SE2.deep_copy(this.V);
+            CLS_KDTree.insert(x_init, this.V);
             temp_E              = [];
             this.E              = {};
-            this.V_unvisited    = this.V(2:end);
 
             this.V_open         = node_SE2.deep_copy(x_init);
             z                   = node_SE2.deep_copy(x_init);
@@ -422,6 +420,16 @@ classdef CLS_2DFMTStar
                 NN_pt  = CLS_KDTree.Near_Neighbour(pos, nodes, 'sq_norm', k);
                 NN_val = NaN;
                 NN_idx = NaN;
+            end
+        end
+        
+        function [neighbours, costs] = KD_Near(this, pos, nodes, r, method)
+            if strcmp(method, 'KDTree_radius_sq_norm')
+                [neighbours, costs] = CLS_KDTree.Near_Neighbour(pos, nodes(1), 'sq_norm', r);
+                
+            elseif strcmp(method, 'KDTree_radius_forward_progress_sq_norm')
+                [neighbours, costs] = CLS_KDTree.Near_Neighbour(pos, nodes(1), 'forward_progress_sq_norm', r);
+                
             end
         end
     end

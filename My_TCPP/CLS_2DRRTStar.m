@@ -5,9 +5,12 @@ classdef CLS_2DRRTStar
         edges
 %         NN_method = 'KDTree_sq_norm';
         NN_method = 'KDTree_progress_sq_norm';      % Nearest Neighbour search method
+        s_i
         s_f                                         % Ending progress (can be a number other than 1)
         break_pts                                   % break points of the whole task
         IsDEBUG                                     % Debug Flag
+        
+        file_name
     end
     
     methods
@@ -17,14 +20,50 @@ classdef CLS_2DRRTStar
             this.IsDEBUG       = this.Env.IsDEBUG;
             this.start_nodes   = start_nodes;
             if ~isempty(varargin)
-                this.break_pts = varargin{1};
-                this.s_f       = this.break_pts(2:end);
+                this.s_i       = varargin{1}(1:end-1);
+                this.s_f       = varargin{1}(2:end);
+                this.file_name = varargin{2};
             else
+                this.s_i       = min(this.Env.s);
                 this.s_f       = max(this.Env.s);
             end
         end
         
-        function [path, ite] = RRT_Star(this)
+        function [paths, ite] = RRT_Star(this)
+            total_cost      = 0;
+            num_path_nodes  = [];
+            tic
+                [paths, ite, record] = this.RRT_Star_Forward();
+            time = toc;
+            
+            for pdx = 1:length(paths)
+                for kdx = length(paths{pdx}):-1:2
+                    line([paths{pdx}(kdx-1).pose(1), paths{pdx}(kdx).pose(1)], [paths{pdx}(kdx-1).pose(2), paths{pdx}(kdx).pose(2)], [paths{pdx}(kdx-1).pose(5), paths{pdx}(kdx).pose(5)], 'Color', '#316879', 'LineWidth', 4);
+                end
+                POSES = this.Env.Extract_item(paths{pdx}, 'pose');
+                quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 0.5, 'Color', '#316879', 'LineWidth', 2);
+                drawnow
+                
+                num_path_nodes  = [num_path_nodes, length(paths{pdx})];
+                total_cost      = total_cost + paths{pdx}(end).cost;
+            end
+            sum_path_nodes = sum(num_path_nodes);
+            fprintf("RRT* search done in %.4f sec, %d iterations with path cost %.4f and %d total number of path nodes.\n", time, ite, total_cost, sum_path_nodes);
+            fprintf("number of path nodes break down:\n");
+            disp(num_path_nodes)
+            
+            % Save data
+            writematrix(num_path_nodes,this.file_name+"path_cost_break_down.txt",'Delimiter',',')
+            fileID = fopen(this.file_name+".txt",'w');
+            fprintf(fileID, "Time: %.4f\n", time);
+            fprintf(fileID, "Iterations %d\n", ite);
+            fprintf(fileID, "Path cost %.4f\n", total_cost);
+            fprintf(fileID, "Total number of nodes: %d\n", sum_path_nodes);
+            fclose(fileID);
+            save(this.file_name+".mat");
+        end
+        
+        function [paths, ite, record] = RRT_Star_Forward(this)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % RRT* algorithm begins by initializing a tree T = (V, E) with a
         % vertex at the initial configuration (i.e. V = {q_I}). 
@@ -50,72 +89,78 @@ classdef CLS_2DRRTStar
             eps_neigh                 = 0.2;
             eps_neigh_rewire          = 0.2;
             
-            if ~isempty(this.break_pts)
-                s_max                 = this.break_pts(1:end-1);        % Current furthest progress
+            if ~isempty(this.s_i)
+                s_max                 = this.s_i;        % Current furthest progress
             else
-                s_max                 = 0;
+                s_max                 = min(this.Env.s);
             end
             % *********************** Parameters ***********************
             
             ite                       = 1;
-            Reached_Goal              = false(length(nodes), 1);
-            stall_count               = 0;
+            Reached_Goal              = false(num_paths, 1);
+            stall_count               = zeros(num_paths, 1);
+            Goals                     = cell(num_paths, 1);
+            paths                     = cell(1, num_paths);
+            record                    = [];
             while ~all(Reached_Goal)
                 %% Main loop
-%                 q_rand = this.TD_sample_pts(1); % no goal for now
-                [~, q_rand, ~]      = this.Rand_Config(0, s_max, this.s_f);
-                q_rand              = node_SE2(q_rand);
-                
-                [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, nodes{1}, this.NN_method);
-                q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
-%                 q_new = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
-                
-                if this.Env.ValidityCheck(q_new)
-                    [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{1}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
-                    q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
-                    q_new.parent                = q_min;
-                    this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
-                    CLS_KDTree.insert(q_new, nodes{1}(1));
-                    this.Rewire(q_new, q_min, nodes{1}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
-                    
-                    if q_new.pose(5) > s_max
-                        s_max = q_new.pose(5);
-                        stall_count = 0;
+                for pdx = 1:num_paths
+                    if ~Reached_Goal(pdx) && ~isempty(nodes{pdx})
+        %                 q_rand = this.TD_sample_pts(1); % no goal for now
+                        [~, q_rand, ~]      = this.Rand_Config(this.s_i(pdx), s_max(pdx), this.s_f(pdx));
+                        q_rand              = node_SE2(q_rand);
+
+                        [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, nodes{pdx}, this.NN_method);
+                        q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+        %                 q_new = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+
+                        if this.Env.ValidityCheck(q_new)
+                            [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{pdx}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
+                            q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
+                            q_new.parent                = q_min;
+                            this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
+                            CLS_KDTree.insert(q_new, nodes{pdx}(1));
+                            this.Rewire(q_new, q_min, nodes{pdx}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
+
+                            if q_new.pose(5) > s_max(pdx)
+                                s_max(pdx) = q_new.pose(5);
+                                stall_count(pdx) = 0;
+                            end
+
+                            if round(q_new.pose(5) - s_max(pdx), 10) < 1e-10
+                                stall_count(pdx) = stall_count(pdx) + 1;
+                            end
+                            
+                            if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 1000 % stall count > 1000 --> tried hard enough
+                                Reached_Goal(pdx) = true;
+                                Goals{pdx}        = q_new;
+                            end
+                            fprintf('Section %d: Looking at progress %.4f \t|s_max: %.4f \t| stall_count %d\n', pdx, q_new.pose(5), s_max(pdx), stall_count(pdx));
+                        end
                     end
-                    if round(q_new.pose(5) - s_max, 10) < 1e-4
-                        stall_count = stall_count + 1;
-                    end
-                    
-                    if round(abs(q_new.pose(5) - this.s_f), 4) < 1e-4
-                        Reached_Goal(1) = true;
-                    end
-                    fprintf('Looking at progress: %.4f \t|s_max: %.4f \t| stall_count %d\n', q_new.pose(5), s_max, stall_count);
                 end
+                record = [record; pdx, s_max(pdx), stall_count(pdx)];
                 ite = ite + 1;
             end
             
             % draw tree
             for idx = 1:size(this.edges, 1)
-                line([this.edges(idx,1), this.edges(idx,6)], [this.edges(idx,2), this.edges(idx,7)], [this.edges(idx,5), this.edges(idx,10)], 'Color', '#316879', 'LineWidth', 1);
+                line([this.edges(idx,1), this.edges(idx,6)], [this.edges(idx,2), this.edges(idx,7)], [this.edges(idx,5), this.edges(idx,10)], 'Color', '#E1701A', 'LineWidth', 1);
             end
             quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
             drawnow
             
-            % draw path
-            q_end   = node_SE2.copy(q_new);
-            path    = q_end;
-            while ~isempty(q_end.parent)
-                next_parent = node_SE2.copy(q_end.parent);
-                path        = [next_parent; path];
-                q_end       = next_parent;
+            for pdx = 1:length(Goals)
+                if ~isempty(Goals{pdx})
+                    q_end       = node_SE2.copy(Goals{pdx});
+                    paths{pdx}  = q_end;
+                    while ~isempty(q_end.parent)
+                        next_parent = node_SE2.copy(q_end.parent);
+                        paths{pdx}  = [next_parent; paths{pdx}];
+                        q_end       = next_parent;
+                    end
+                end
             end
-            
-            for kdx = length(path):-1:2
-                line([path(kdx-1).pose(1), path(kdx).pose(1)], [path(kdx-1).pose(2), path(kdx).pose(2)], [0,0], 'Color', '#E1701A', 'LineWidth', 4);
-            end
-            POSES = this.Env.Extract_item(path, 'pose');
-            quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 'Color', '#F7A440', 'LineWidth', 2);
-            drawnow
         end
         
         function Rewire(this, q_new, q_min, node, dist_method, r, varargin)

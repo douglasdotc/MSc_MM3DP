@@ -81,8 +81,8 @@ classdef CLS_ENV_SE2 < handle
             
             % Check if robot collide with obstacles
             for o_idx = 1:length(this.obstacles)
-                IsCollide = any(inpolygon(this.obstacles{o_idx}.Vertices(:,1), this.obstacles{o_idx}.Vertices(:,2), Robot_Poly(:,1), Robot_Poly(:,2)));
-                Iscollide = IsCollide || any(inpolygon(Robot_Poly(:,1), Robot_Poly(:,2), this.obstacles{o_idx}.Vertices(:,1), this.obstacles{o_idx}.Vertices(:,2)));
+                IsCollide = any(inpolygon(this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2), Robot_Poly(:,1), Robot_Poly(:,2)));
+                Iscollide = IsCollide || any(inpolygon(Robot_Poly(:,1), Robot_Poly(:,2), this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2)));
                 
                 if Iscollide
                     if this.IsDEBUG
@@ -753,14 +753,14 @@ classdef CLS_ENV_SE2 < handle
         
             edges = [];
             for o_idx = 1:length(this.obstacles)
-                for vertex_idx = 1:size(this.obstacles{o_idx}.Vertices, 1)
+                for vertex_idx = 1:size(this.obstacles{o_idx}, 1)
                     next_vertex_idx = vertex_idx + 1;
-                    if next_vertex_idx > size(this.obstacles{o_idx}.Vertices, 1)
+                    if next_vertex_idx > size(this.obstacles{o_idx}, 1)
                         next_vertex_idx = 1;
                     end
-                    [dists, ~] = dist_metric.point_to_line(this.task_coord, this.obstacles{o_idx}.Vertices(vertex_idx,:), this.obstacles{o_idx}.Vertices(next_vertex_idx,:));
+                    [dists, ~] = dist_metric.point_to_line(this.task_coord, this.obstacles{o_idx}(vertex_idx,:), this.obstacles{o_idx}(next_vertex_idx,:));
                     if any(dists <= this.IRM.r_max)
-                        edges = [edges; this.obstacles{o_idx}.Vertices(vertex_idx,:), this.obstacles{o_idx}.Vertices(next_vertex_idx,:), o_idx];
+                        edges = [edges; this.obstacles{o_idx}(vertex_idx,:), this.obstacles{o_idx}(next_vertex_idx,:), o_idx];
                     end
                 end
             end
