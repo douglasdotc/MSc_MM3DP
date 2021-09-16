@@ -55,7 +55,6 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 
 sampling_intensity  = 2;
 r_search            = 0.3;
-max_trial           = 10;
 parfor obs_config_idx = 1:5
     for tdx = 1:5
         file_name = "FMT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);

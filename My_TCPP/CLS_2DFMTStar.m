@@ -5,7 +5,6 @@ classdef CLS_2DFMTStar
         r_search
         r_search_original
         s_f                                         % Ending progress (can be a number other than 1)
-        max_trial                                   % maximum number of trials for a progress, skip this point of progress when reached
         break_pts                                   % break points of the whole task
         V                                           % Vertex Set
         E                                           % Edge Set
@@ -22,13 +21,12 @@ classdef CLS_2DFMTStar
     end
     
     methods
-        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial, varargin)
+        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env                = Env;
             this.sampling_intensity = sampling_intensity;
             this.r_search           = r_search;
             this.r_search_original  = r_search;
-            this.max_trial          = max_trial;
             this.s_f                = max(this.Env.s);
             this.IsDEBUG            = this.Env.IsDEBUG;
             if ~isempty(varargin)
