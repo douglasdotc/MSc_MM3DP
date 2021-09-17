@@ -97,7 +97,7 @@ classdef CLS_2DFMTStar
                 end
                 if IsDifficultRegion % If found colliding with obstacles, try sample more
                     fprintf('Encounter a region with obstacles, trying to sample more...\n');
-                    for jdx = 1:this.sampling_intensity + this.adaptive_sampling_intensity
+                    for jdx = 1:this.adaptive_sampling_intensity
                         [pt, ~] = this.sample_pts(s, 1);
                         this.V = [this.V; pt];
                     end

@@ -1,47 +1,53 @@
 filePattern = fullfile('*.mat');
 matFiles = dir(filePattern);
 
-% sampling_intensity_rec = [];
-% radius_rec = [];
-time_rec        = [];
-num_of_path_rec = [];
-path_cost_rec   = [];
-radius_max_rec  = [];
-radius_mode_rec = [];
-radius_mean_rec = [];
-radius_std_rec  = [];
+Data = [];
 
 for k = 1:length(matFiles)
-  baseFileName = matFiles(k).name;
-  fullFileName = fullfile(baseFileName);
-  fprintf(1, 'Now reading %s\n', fullFileName);
-  thisData = load(fullFileName);
-  
-  sampling_intensity = str2double(fullFileName(16));
-  radius             = str2double(fullFileName(19:end-4));
-  
-  sampling_intensity_rec = [sampling_intensity_rec, sampling_intensity];
-  radius_rec             = [radius_rec, radius];
-  time_rec               = [time_rec, thisData.time];
-  num_of_path_rec        = [num_of_path_rec, length(thisData.paths)];
-  path_cost_rec          = [path_cost_rec, thisData.total_cost];
-  radius_max_rec         = [radius_max_rec, max(thisData.record(:,4))];
-  radius_mode_rec        = [radius_mode_rec, mode(thisData.record(:,4))];
-  radius_mean_rec        = [radius_mean_rec, mean(thisData.record(:,4))];
-  radius_std_rec         = [radius_std_rec, std(thisData.record(:,4))];
-      
-  if length(thisData.paths) == 1
-      ax1 = figure(1);
-      plot(thisData.record(:,4))
-      box on
-      hold on
-      xlabel('Number of iterations')
-      ylabel('Radius (m)')
-      drawnow
-      saveas(ax1, "FMT_ite_vs_radius_"+string(sampling_intensity)+"_r"+string(radius)+".png")
-      hold off
-      delete(ax1)
-  end
+    baseFileName = matFiles(k).name;
+    fullFileName = fullfile(baseFileName);
+    fprintf(1, 'Now reading %s\n', fullFileName);
+    thisData = load(fullFileName);
+
+    config = str2double(fullFileName(27));
+    trial  = str2double(fullFileName(30));
+    
+    Data = [Data; config, trial, thisData.time, thisData.sampling_time, thisData.ite, thisData.total_cost, thisData.sum_path_nodes,...
+            mean(thisData.record(:,4)), std(thisData.record(:,4))];
+    
+    ax1 = figure(1);
+    plot(thisData.record(:,1))
+    box on
+    hold on
+    xlabel('Number of iterations')
+    ylabel('Size of V_{open}')
+    drawnow
+    saveas(ax1, "FMT_Config_"+string(config)+"_T"+string(trial)+"V_open_size_change.png")
+    hold off
+    delete(ax1)
+    
+    ax1 = figure(1);
+    plot(thisData.record(:,2))
+    box on
+    hold on
+    plot(thisData.record(:,3))
+    xlabel('Number of iterations')
+    legend({'Size of V_{closed}','Size of V_{unvisited}'})
+    drawnow
+    saveas(ax1, "FMT_Config_"+string(config)+"_T"+string(trial)+"V_closed_V_unvisited_size_change.png")
+    hold off
+    delete(ax1)
+        
+    ax1 = figure(1);
+    plot(thisData.record(:,4))
+    box on
+    hold on
+    xlabel('Number of iterations')
+    ylabel('Radius (m)')
+    drawnow
+    saveas(ax1, "FMT_Config_"+string(config)+"_T"+string(trial)+".png")
+    hold off
+    delete(ax1)
 end
 
 
@@ -58,94 +64,5 @@ zlabel('Time (s)')
 h = colorbar;
 ylabel(h, 'Time (s)')
 saveas(ax1, "FMT_sample_int_vs_radius_vs_time.fig")
-hold off
-delete(ax1)
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],num_of_path_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-zlabel('Number of paths')
-h = colorbar;
-ylabel(h, 'Number of paths')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_num_paths.fig")
-hold off
-delete(ax1)
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],path_cost_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-zlabel('Path cost')
-h = colorbar;
-ylabel(h, 'Path cost')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_path_cost.fig")
-hold off
-delete(ax1)
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],radius_max_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-h = colorbar;
-ylabel(h, 'Max. radius (m)')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_maxr.fig")
-hold off
-delete(ax1)
-% sampling_intensity_rec + radius_rec + time_rec
-% sampling_intensity_rec + radius_rec + num_of_path_rec
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],radius_mode_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-h = colorbar;
-ylabel(h, 'Mode of radius (m)')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_moder.fig")
-hold off
-delete(ax1)
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],radius_mean_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-h = colorbar;
-ylabel(h, 'Mean of radius (m)')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_meanr.fig")
-hold off
-delete(ax1)
-
-ax1 = figure(1);
-f = fit([sampling_intensity_rec',radius_rec'],radius_std_rec', 'cubicinterp');
-zPrediction = f(sampling_intensity_rec(1), radius_rec(1));
-plot(f)
-hold on
-box on
-xlabel('Sampling intensity (unit/progress)')
-ylabel('Specified radius (m)')
-zlabel('Standard deviation of radius (m)')
-h = colorbar;
-ylabel(h, 'Standard deviation of radius (m)')
-saveas(ax1, "FMT_sample_int_vs_radius_vs_stdr.fig")
 hold off
 delete(ax1)

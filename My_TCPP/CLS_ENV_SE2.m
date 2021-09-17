@@ -80,12 +80,14 @@ classdef CLS_ENV_SE2 < handle
             else
                 Robot_Poly = varargin{1};
             end
+            Robot_Poly_x = Robot_Poly(:,1);
+            Robot_Poly_y = Robot_Poly(:,2);
             
             IsValid = true;
             % Check if robot collide with obstacles
             for o_idx = 1:length(this.obstacles)
-                IsCollide = any(inpolygon(this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2), Robot_Poly(:,1), Robot_Poly(:,2)));
-                Iscollide = IsCollide || any(inpolygon(Robot_Poly(:,1), Robot_Poly(:,2), this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2)));
+                IsCollide = any(inpolygon(this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2), Robot_Poly_x, Robot_Poly_y));
+                Iscollide = IsCollide || any(inpolygon(Robot_Poly_x, Robot_Poly_y, this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2)));
                 
                 if Iscollide
                     if this.IsDEBUG

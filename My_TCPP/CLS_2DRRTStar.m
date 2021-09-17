@@ -84,10 +84,10 @@ classdef CLS_2DRRTStar
             dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
 %             dist_method = 'sq_norm';
             max_iter                  = 1e4;                            % Max. iteration
-            delta_l                   = 0.1;                            % RRT edge length
-            delta_l_step              = delta_l/5;                      % RRT edge step size
-            eps_neigh                 = 0.2;
-            eps_neigh_rewire          = 0.2;
+            delta_l                   = 0.05;                            % RRT edge length
+            delta_l_step              = 0.01;                      % RRT edge step size
+            eps_neigh                 = 0.25;
+            eps_neigh_rewire          = 0.25;
             
             if ~isempty(this.s_i)
                 s_max                 = this.s_i;        % Current furthest progress
@@ -102,56 +102,57 @@ classdef CLS_2DRRTStar
             Goals                     = cell(num_paths, 1);
             paths                     = cell(1, num_paths);
             record                    = [];
-            while ~all(Reached_Goal)
+%             while ~all(Reached_Goal)
                 %% Main loop
-                for pdx = 1:num_paths
-                    if ~Reached_Goal(pdx) && ~isempty(nodes{pdx})
-        %                 q_rand = this.TD_sample_pts(1); % no goal for now
+            for pdx = 1:num_paths
+                if ~isempty(nodes{pdx})
+                    while ~Reached_Goal(pdx)
                         [~, q_rand, ~]      = this.Rand_Config(this.s_i(pdx), s_max(pdx), this.s_f(pdx));
                         q_rand              = node_SE2(q_rand);
 
                         [q_nearest, ~, ~]   = this.Nearest_Neighbour(q_rand, nodes{pdx}, this.NN_method);
                         q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
-        %                 q_new = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
+                        
+                        if this.Env.ValidityCheck(q_new)
+                            [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{pdx}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
+                            q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
+                            q_new.parent                = q_min;
+                            if this.IsDEBUG
+                                this.edges = [this.edges; [q_new.pose, q_new.parent.pose]];
+                            end
+                            CLS_KDTree.insert(q_new, nodes{pdx}(1));
+                            this.Rewire(q_new, q_min, nodes{pdx}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
 
-%                         if this.Env.ValidityCheck(q_new)
-                        if this.Env.CheckCollisionWithTask(q_new) && this.Env.isInIRM(q_new)
-                            if this.Env.CheckCollisionWithObstacles(q_new)
-                                [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{pdx}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
-                                q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
-                                q_new.parent                = q_min;
-                                this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
-                                CLS_KDTree.insert(q_new, nodes{pdx}(1));
-                                this.Rewire(q_new, q_min, nodes{pdx}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
-
-                                if q_new.pose(5) > s_max(pdx)
-                                    s_max(pdx) = q_new.pose(5);
-                                    stall_count(pdx) = 0;
-                                end
-
-                                if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 100 % stall count > 100 --> tried hard enough
-                                    Reached_Goal(pdx) = true;
-                                    Goals{pdx}        = q_new;
-                                end
+                            if q_new.pose(5) > s_max(pdx)
+                                s_max(pdx) = q_new.pose(5);
+                                stall_count(pdx) = 0;
                             else
-                                if abs(round(q_new.pose(5) - s_max(pdx), 10)) < 1e-10 % Collide with obstacle at the furthest progress --> cannot proceed
-                                    stall_count(pdx) = stall_count(pdx) + 1;
-                                end
+                                stall_count(pdx) = stall_count(pdx) + 1;
+                            end
+
+                            if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 1000 % stall count > 100 --> tried hard enough
+                                Reached_Goal(pdx) = true;
+                                Goals{pdx}        = q_new;
                             end
                             fprintf('Section %d: Looking at progress %.4f \t|s_max: %.4f \t| stall_count %d\n', pdx, q_new.pose(5), s_max(pdx), stall_count(pdx));
                         end
+                        if this.IsDEBUG
+                            record  = [record; pdx, s_max(pdx), stall_count(pdx)];
+                        end
+                        ite     = ite + 1;
                     end
                 end
-                record = [record; pdx, s_max(pdx), stall_count(pdx)];
-                ite = ite + 1;
             end
+%             end
             
             % draw tree
-            for idx = 1:size(this.edges, 1)
-                line([this.edges(idx,1), this.edges(idx,6)], [this.edges(idx,2), this.edges(idx,7)], [this.edges(idx,5), this.edges(idx,10)], 'Color', '#E1701A', 'LineWidth', 1);
+            if this.IsDEBUG
+                for idx = 1:size(this.edges, 1)
+                    line([this.edges(idx,1), this.edges(idx,6)], [this.edges(idx,2), this.edges(idx,7)], [this.edges(idx,5), this.edges(idx,10)], 'Color', '#E1701A', 'LineWidth', 1);
+                end
+                quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
+                drawnow
             end
-            quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
-            drawnow
             
             for pdx = 1:length(Goals)
                 if ~isempty(Goals{pdx})
@@ -202,17 +203,19 @@ classdef CLS_2DRRTStar
                     % If extendable and the cost from start --> q_new --> node
                     % is less than the cost from start to node
                     if all(round(q_check.pose - node.pose, 10) == 0) && dist + q_new.cost < node.cost
-                        check_A = [node.pose, node.parent.pose];
-                        del_idx = find(sum(this.edges - check_A == 0, 2) == 10);
-                        if isempty(del_idx)
-                            check_B = [node.parent.pose, node.pose];
-                            del_idx = find(sum(this.edges - check_B == 0, 2) == 10);
-                        end
-                        if ~isempty(del_idx)
-                            this.edges(del_idx,:) = [];
+                        if this.IsDEBUG
+                            check_A = [node.pose, node.parent.pose];
+                            del_idx = find(sum(this.edges - check_A == 0, 2) == 10);
+                            if isempty(del_idx)
+                                check_B = [node.parent.pose, node.pose];
+                                del_idx = find(sum(this.edges - check_B == 0, 2) == 10);
+                            end
+                            if ~isempty(del_idx)
+                                this.edges(del_idx,:) = [];
+                            end
+                            this.edges  = [this.edges; [q_new.pose, node.parent.pose]];
                         end
                         node.parent = q_new; % change parent
-                        this.edges  = [this.edges; [q_new.pose, node.parent.pose]];
                     end
                 end
             end
@@ -342,9 +345,9 @@ classdef CLS_2DRRTStar
             IsGoal = true;
         else
             mean   = s_max;                 % Current furthest progress
-            s_var  = 0.1*s_f;               % Variance
+            s_var  = 0.05*s_f;              % Variance
             sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
-            s_Norm = sigma*randn(1) + mean; % Normal distribution sampling
+            s_Norm = s_var*randn(1) + mean; % Normal distribution sampling
             
             s_rand = max(s_break, min(s_f, s_Norm));
             IsGoal = false;
