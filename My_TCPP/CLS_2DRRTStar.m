@@ -127,7 +127,7 @@ classdef CLS_2DRRTStar
                                 stall_count(pdx) = 0;
                             end
 
-                            if round(q_new.pose(5) - s_max(pdx), 10) < 1e-10
+                            if abs(round(q_new.pose(5) - s_max(pdx), 10)) < 1e-10
                                 stall_count(pdx) = stall_count(pdx) + 1;
                             end
                             

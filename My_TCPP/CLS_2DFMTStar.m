@@ -5,7 +5,7 @@ classdef CLS_2DFMTStar
         r_search
         r_search_original
         s_f                                         % Ending progress (can be a number other than 1)
-        break_pts                                   % break points of the whole task
+        max_trials
         V                                           % Vertex Set
         E                                           % Edge Set
         V_unvisited                                 % The set maintains the nodes which have not been added to the tree
@@ -21,13 +21,14 @@ classdef CLS_2DFMTStar
     end
     
     methods
-        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, varargin)
+        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trials, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
             this.Env                = Env;
             this.sampling_intensity = sampling_intensity;
             this.r_search           = r_search;
             this.r_search_original  = r_search;
             this.s_f                = max(this.Env.s);
+            this.max_trials         = max_trials;
             this.IsDEBUG            = this.Env.IsDEBUG;
             if ~isempty(varargin)
                 this.file_name = varargin{1};
@@ -76,24 +77,20 @@ classdef CLS_2DFMTStar
         
         function [paths, ite, record] = Forward_FMT_Star(this)
             %%
-            if ~isempty(this.break_pts)
-                s_max = this.break_pts(1:end-1);        % Current furthest progress
-            else
-                s_max = min(this.Env.s);
-            end
-            
             % Init:
             x_init = this.sample_pts(this.Env.s(1), 1);
 %             x_init = this.TD_sample_pts(1);
 %             scatter(x_init.pose(1), x_init.pose(2), 'x')
             
-            fprintf('Sampling...');
+            fprintf('Sampling...\n');
 %             for idx = 1:100
 %                 this.V = [this.V; this.TD_sample_pts(1)];
 %             end
             for s_idx = 1:length(this.Env.s)
+                s = this.Env.s(s_idx);
+                fprintf('Sampling progress: %.4f\n', s);
                 for idx = 1:this.sampling_intensity
-                    this.V = [this.V; this.sample_pts(this.Env.s(s_idx), 1)];
+                    this.V = [this.V; this.sample_pts(s, 1)];
                 end
             end
             fprintf('done\n');
@@ -112,6 +109,7 @@ classdef CLS_2DFMTStar
                         
             dist_method  = 'forward_progress_sq_norm';
             % dist_method  = 'sq_norm';
+            s_max         = min(this.Env.s);
             ite           = 1;
             stall_count   = 0;
             record        = [];
@@ -157,15 +155,18 @@ classdef CLS_2DFMTStar
                     fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f \t | stall_count %d \t| s_max %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max);
                     fprintf("V_open is empty, search for new start in V_unvisited...\n")
                     
+                    % Enquire V_unvisited
                     temp_poses  = this.Env.Extract_item(this.V_closed, 'pose');
                     p           = this.V_closed(find(round(temp_poses(:,5) - s_max, 10) == 0, 1));
                     
-                    
+                    % If p is a path
                     if ~isempty(p.parent) % At least have two nodes
                         path_store      = [path_store; p]; % store section of path
                         this.E{end + 1} = temp_E;
                         temp_E          = [];
                     end
+                    
+                    % Update V_open and z
                     poses           = this.Env.Extract_item(this.V_unvisited, 'pose');
                     un_idx          = find(poses(:,5) > s_max, 1);
                     this.V_open     = node_SE2.deep_copy(this.V_unvisited(un_idx));
@@ -186,7 +187,7 @@ classdef CLS_2DFMTStar
                     stall_count = 0;
                 end
                 
-                if round(z.pose(5) - s_max, 10) < 1e-10
+                if abs(round(z.pose(5) - s_max, 10)) < 1e-10
                     stall_count = stall_count + 1;
                 end
                 
@@ -380,9 +381,11 @@ classdef CLS_2DFMTStar
             for idx = 1:n % sample n pts
                 [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
                 pt      = node_SE2(pt);
-                while ~this.Env.ValidityCheck(pt)
+                trial   = 0;
+                while ~this.Env.ValidityCheck(pt) % && trial < this.max_trials
                     [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
                     pt      = node_SE2(pt);
+                    trial   = trial + 1;
                 end
                 
                 % KD Tree

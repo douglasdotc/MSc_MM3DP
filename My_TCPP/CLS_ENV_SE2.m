@@ -63,22 +63,25 @@ classdef CLS_ENV_SE2 < handle
         % 2. No collision with task
         % 3. No collision with environment
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            
-%             Check if is in environment
-%             if (this.x_lim(1) < node.pose(1) && node.pose(1) < this.x_lim(2)) && (this.y_lim(1) < node.pose(2) && node.pose(2) < this.ylim(2))
-%                 IsValid = true;
-%             else
-%                 disp("Point out of bound")
-%             end
+            NoCollisionWithObstacles = this.CheckCollisionWithObstacles(node);
+            NoCollisionWithTasks     = this.CheckCollisionWithTask(node);
+            IsInIRM                  = this.isInIRM(node);
+            IsValid                  = NoCollisionWithObstacles && NoCollisionWithTasks && IsInIRM;
+        end
+        
+        function IsValid = CheckCollisionWithObstacles(this, node, varargin)
+            if isempty(varargin)
+                % Robot hit box pose:
+                ro_T = [node.pose(3), -node.pose(4), node.pose(1);
+                        node.pose(4),  node.pose(3), node.pose(2);
+                                   0,             0,            1];
 
+                Robot_Poly = (ro_T*this.robot_hitbox)';
+            else
+                Robot_Poly = varargin{1};
+            end
+            
             IsValid = true;
-            % Robot hit box pose:
-            ro_T = [node.pose(3), -node.pose(4), node.pose(1);
-                    node.pose(4),  node.pose(3), node.pose(2);
-                               0,             0,            1];
-            
-            Robot_Poly = (ro_T*this.robot_hitbox)';
-            
             % Check if robot collide with obstacles
             for o_idx = 1:length(this.obstacles)
                 IsCollide = any(inpolygon(this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2), Robot_Poly(:,1), Robot_Poly(:,2)));
@@ -92,8 +95,22 @@ classdef CLS_ENV_SE2 < handle
                     return;
                 end
             end
+        end
+        
+        function IsValid = CheckCollisionWithTask(this, node, varargin)
+            if isempty(varargin)
+                % Robot hit box pose:
+                ro_T = [node.pose(3), -node.pose(4), node.pose(1);
+                        node.pose(4),  node.pose(3), node.pose(2);
+                                   0,             0,            1];
+
+                Robot_Poly = (ro_T*this.robot_hitbox)';
+            else
+                Robot_Poly = varargin{1};
+            end
             
             % Check if robot collide with task
+            IsValid = true;
             if node.pose(5) ~= 0
                 s_idx = min(length(this.task_coord), round(length(this.task_coord)*node.pose(5)));
             else
@@ -122,13 +139,15 @@ classdef CLS_ENV_SE2 < handle
                 IsValid = false;
                 return
             end
-            
+        end
+        
+        function IsValid = isInIRM(this, node)
             % Check if point is in IRM
             Ts_idx  = min(size(this.task_T, 3), max(1, ceil(size(this.task_T, 3)*node.pose(5))));
             T_s     = this.task_T(:,:,Ts_idx);
-            IsValid = IsValid && this.IRM.PtInIRM(T_s, node.pose);
+            IsValid = this.IRM.PtInIRM(T_s, node.pose);
         end
-    
+        
         function val = Extract_item(this, nodes, item)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Return all items stored in nodes
