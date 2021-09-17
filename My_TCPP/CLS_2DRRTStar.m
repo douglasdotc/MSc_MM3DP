@@ -114,26 +114,29 @@ classdef CLS_2DRRTStar
                         q_new               = node_SE2(this.Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
         %                 q_new = node_SE2(this.TD_Extend(q_rand, q_nearest, delta_l_step, delta_l, dist_method));
 
-                        if this.Env.ValidityCheck(q_new)
-                            [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{pdx}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
-                            q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
-                            q_new.parent                = q_min;
-                            this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
-                            CLS_KDTree.insert(q_new, nodes{pdx}(1));
-                            this.Rewire(q_new, q_min, nodes{pdx}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
+%                         if this.Env.ValidityCheck(q_new)
+                        if this.Env.CheckCollisionWithTask(q_new) && this.Env.isInIRM(q_new)
+                            if this.Env.CheckCollisionWithObstacles(q_new)
+                                [q_neighs, q_neighs_costs]  = this.Near(q_new, nodes{pdx}, eps_neigh, 'KDTree_radius_sq_norm'); % KDTree_radius_forward_progress_sq_norm
+                                q_min                       = this.ChoseParent(q_new, q_nearest, q_neighs, q_neighs_costs, dist_method);
+                                q_new.parent                = q_min;
+                                this.edges                  = [this.edges; [q_new.pose, q_new.parent.pose]];
+                                CLS_KDTree.insert(q_new, nodes{pdx}(1));
+                                this.Rewire(q_new, q_min, nodes{pdx}(1), 'sq_norm', eps_neigh_rewire); % forward_progress_sq_norm
 
-                            if q_new.pose(5) > s_max(pdx)
-                                s_max(pdx) = q_new.pose(5);
-                                stall_count(pdx) = 0;
-                            end
+                                if q_new.pose(5) > s_max(pdx)
+                                    s_max(pdx) = q_new.pose(5);
+                                    stall_count(pdx) = 0;
+                                end
 
-                            if abs(round(q_new.pose(5) - s_max(pdx), 10)) < 1e-10
-                                stall_count(pdx) = stall_count(pdx) + 1;
-                            end
-                            
-                            if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 1000 % stall count > 1000 --> tried hard enough
-                                Reached_Goal(pdx) = true;
-                                Goals{pdx}        = q_new;
+                                if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 100 % stall count > 100 --> tried hard enough
+                                    Reached_Goal(pdx) = true;
+                                    Goals{pdx}        = q_new;
+                                end
+                            else
+                                if abs(round(q_new.pose(5) - s_max(pdx), 10)) < 1e-10 % Collide with obstacle at the furthest progress --> cannot proceed
+                                    stall_count(pdx) = stall_count(pdx) + 1;
+                                end
                             end
                             fprintf('Section %d: Looking at progress %.4f \t|s_max: %.4f \t| stall_count %d\n', pdx, q_new.pose(5), s_max(pdx), stall_count(pdx));
                         end

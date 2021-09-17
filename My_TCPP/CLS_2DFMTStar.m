@@ -2,6 +2,7 @@ classdef CLS_2DFMTStar
     properties
         Env                                         % Environment that RRT* is exploring with
         sampling_intensity                          % Number of points that will sample in each IRM
+        adaptive_sampling_intensity
         r_search
         r_search_original
         s_f                                         % Ending progress (can be a number other than 1)
@@ -21,15 +22,16 @@ classdef CLS_2DFMTStar
     end
     
     methods
-        function this = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trials, varargin)
+        function this = CLS_2DFMTStar(Env, sampling_intensity, adaptive_sampling_intensity, r_search, max_trials, varargin)
         %% Initialize://////////////////////////////////////////////////////////////////////////////
-            this.Env                = Env;
-            this.sampling_intensity = sampling_intensity;
-            this.r_search           = r_search;
-            this.r_search_original  = r_search;
-            this.s_f                = max(this.Env.s);
-            this.max_trials         = max_trials;
-            this.IsDEBUG            = this.Env.IsDEBUG;
+            this.Env                         = Env;
+            this.sampling_intensity          = sampling_intensity;
+            this.adaptive_sampling_intensity = adaptive_sampling_intensity;
+            this.r_search                    = r_search;
+            this.r_search_original           = r_search;
+            this.s_f                         = max(this.Env.s);
+            this.max_trials                  = max_trials;
+            this.IsDEBUG                     = this.Env.IsDEBUG;
             if ~isempty(varargin)
                 this.file_name = varargin{1};
             else
@@ -44,7 +46,7 @@ classdef CLS_2DFMTStar
             total_cost      = 0;
             num_path_nodes  = [];
             tic
-                [paths, ite, record] = this.Forward_FMT_Star();
+                [paths, ite, sampling_time, record] = this.Forward_FMT_Star();
             time = toc;
             
             if this.IsDEBUG
@@ -67,7 +69,8 @@ classdef CLS_2DFMTStar
             % Save data
             writematrix(num_path_nodes,this.file_name+"path_cost_break_down.txt",'Delimiter',',')
             fileID = fopen(this.file_name+".txt",'w');
-            fprintf(fileID, "Time: %.4f\n", time);
+            fprintf(fileID, "Total time: %.4f\n", time);
+            fprintf(fileID, "Sampling time: %.4f\n", sampling_time);
             fprintf(fileID, "Iterations %d\n", ite);
             fprintf(fileID, "Path cost %.4f\n", total_cost);
             fprintf(fileID, "Total number of nodes: %d\n", sum_path_nodes);
@@ -75,52 +78,56 @@ classdef CLS_2DFMTStar
             save(this.file_name+".mat");
         end
         
-        function [paths, ite, record] = Forward_FMT_Star(this)
+        function [paths, ite, sampling_time, record] = Forward_FMT_Star(this)
             %%
             % Init:
-            x_init = this.sample_pts(this.Env.s(1), 1);
-%             x_init = this.TD_sample_pts(1);
-%             scatter(x_init.pose(1), x_init.pose(2), 'x')
+            IsDifficultRegion_init = true;
+            while IsDifficultRegion_init % Must not collide with obstacles
+                [x_init, IsDifficultRegion_init] = this.sample_pts(this.Env.s(1), 1);
+            end
             
             fprintf('Sampling...\n');
-%             for idx = 1:100
-%                 this.V = [this.V; this.TD_sample_pts(1)];
-%             end
+            tic
             for s_idx = 1:length(this.Env.s)
                 s = this.Env.s(s_idx);
                 fprintf('Sampling progress: %.4f\n', s);
                 for idx = 1:this.sampling_intensity
-                    this.V = [this.V; this.sample_pts(s, 1)];
+                    [pt, IsDifficultRegion] = this.sample_pts(s, 1);
+                    this.V = [this.V; pt];
+                end
+                if IsDifficultRegion % If found colliding with obstacles, try sample more
+                    fprintf('Encounter a region with obstacles, trying to sample more...\n');
+                    for jdx = 1:this.sampling_intensity + this.adaptive_sampling_intensity
+                        [pt, ~] = this.sample_pts(s, 1);
+                        this.V = [this.V; pt];
+                    end
                 end
             end
+            sampling_time = toc;
             fprintf('done\n');
             
-%             poses = this.Env.Extract_item(this.V, 'pose');
-%             scatter(poses(:,1), poses(:,2))
             path_store          = [];
             paths               = {};
             this.V              = [x_init; this.V];
             temp_E              = [];
             this.E              = {};
             this.V_unvisited    = this.V(2:end);
-
             this.V_open         = node_SE2.deep_copy(x_init);
             z                   = node_SE2.deep_copy(x_init);
                         
-            dist_method  = 'forward_progress_sq_norm';
-            % dist_method  = 'sq_norm';
-            s_max         = min(this.Env.s);
-            ite           = 1;
-            stall_count   = 0;
-            record        = [];
+            dist_method         = 'forward_progress_sq_norm'; % 'sq_norm';
+            s_max               = min(this.Env.s);
+            ite                 = 1;
+            stall_count         = 0;
+            record              = [];
             
             % Main loop
             while ~all(abs(z.pose(5) - this.s_f) < 1e-5)
-                V_open_new   = [];
+                V_open_new                  = [];
                 [N_z, dists, this.r_search] = this.Near(this.V, z, this.r_search, 'backward_progress_sq_norm');
                 X_near                      = this.Intersect(N_z, this.V_unvisited);
                 for ndx = 1:length(X_near)
-                    x                   = X_near(ndx);
+                    x                           = X_near(ndx);
                     [N_x, dists, this.r_search] = this.Near(this.V, x, this.r_search, dist_method);
                     Y_near                      = this.Intersect(N_x, this.V_open);
                     if ~isempty(Y_near)
@@ -172,18 +179,18 @@ classdef CLS_2DFMTStar
                     this.V_open     = node_SE2.deep_copy(this.V_unvisited(un_idx));
                     z               = node_SE2.deep_copy(this.V_unvisited(un_idx));
                     
-                    % Record size:
+                    % Record:
                     record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max];
                 else
                     fprintf('Progress: %.4f | V_open size: %d \t| V_closed size: %d \t | V_unvisited size: %d \t | r_search %.4f \t | stall_count %d \t| s_max %.4f\n', z.pose(5), length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max);
                     z = this.Config(s_max);
                     
-                    % Record size:
+                    % Record:
                     record = [record; length(this.V_open), length(this.V_closed), length(this.V_unvisited), this.r_search, stall_count, s_max];
                 end
                 
                 if z.pose(5) > s_max
-                    s_max = z.pose(5);
+                    s_max       = z.pose(5);
                     stall_count = 0;
                 end
                 
@@ -230,19 +237,6 @@ classdef CLS_2DFMTStar
             %% push forward
             % choose a progress max at s_max, choosing a progress > s_max will intentionally break the path.
             % choose a random progress max at s_max then choose the node with minimum cost
-%             mean   = s_max;                 % Current furthest progress
-%             s_var  = 0.001*this.s_f;         % Variance
-%             sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
-%             s_Norm = sigma*randn(1) + mean; % Normal distribution sampling
-%             s_rand = max(0, min(s_max, s_Norm));
-            
-%             poses                    = this.Env.Extract_item(this.V_open, 'pose');
-%             selected_V_open = this.V_open(abs(poses(:,5) - s_rand) <= 0.01);
-%             if isempty(selected_V_open)
-%                 costs                = this.Env.Extract_item(this.V_open, 'cost');
-%             else
-%                 costs                = this.Env.Extract_item(selected_V_open, 'cost');
-%             end
             costs                    = this.Env.Extract_item(this.V_open, 'cost');
             [min_cost, min_cost_idx] = min(costs);
             z                        = this.V_open(min_cost_idx);
@@ -360,7 +354,7 @@ classdef CLS_2DFMTStar
             end
         end
                 
-        function nodes = sample_pts(this, s, n, varargin)
+        function [nodes, IsDifficultRegion] = sample_pts(this, s, n, varargin)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Sample n points from the IRM corresponds to progress s
         % Inputs:
@@ -369,25 +363,42 @@ classdef CLS_2DFMTStar
         % Outputs:
         % nodes: An array of nodes with size nx1
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            
-            % Find the transformation matrix correspond to the progress s:
-            T_s         = this.Env.task_T(:, :, min(size(this.Env.task_T, 3), max(1, ceil(size(this.Env.task_T, 3)*s))));
             if ~isempty(varargin)
                 nodes   = varargin{1};
             else
                 nodes   = [];
             end
             
+            % Find the transformation matrix correspond to the progress s:
+            T_s               = this.Env.task_T(:, :, min(size(this.Env.task_T, 3), max(1, ceil(size(this.Env.task_T, 3)*s))));
+            IsDifficultRegion = false;
             for idx = 1:n % sample n pts
-                [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
-                pt      = node_SE2(pt);
-                trial   = 0;
-                while ~this.Env.ValidityCheck(pt) % && trial < this.max_trials
+                trial                 = 0;
+%                 IsValid = false;
+%                 while ~IsValid
+%                     [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
+%                     pt      = node_SE2(pt);
+%                     trial   = trial + 1;
+%                     IsValid = this.Env.ValidityCheck(pt);
+%                 end
+                IsInIRM_and_TaskValid = false;
+                
+                while ~IsInIRM_and_TaskValid || trial <= this.max_trials
                     [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
                     pt      = node_SE2(pt);
-                    trial   = trial + 1;
+                    IsInIRM_and_TaskValid = this.Env.isInIRM(pt) && this.Env.CheckCollisionWithTask(pt);
+                    if IsInIRM_and_TaskValid
+                        if ~this.Env.CheckCollisionWithObstacles(pt)
+                            trial = trial + 1; % Collide with obstacles
+                        else
+                            break; % No collision with obstacles
+                        end
+                    end
                 end
                 
+                if trial >= this.max_trials % Tried so many times 
+                    IsDifficultRegion = true; % Notify FMT* to sample more here.
+                end
                 % KD Tree
                 if isempty(nodes)
                     nodes = pt;

@@ -93,8 +93,16 @@ classdef CLS_Obstacles
         
         function Obstacles = Obstacle_config_6()
             %%
-            % Long narrow gap (not printable):
-            Obstacles{1} = [];
+            % Long narrow gap 2 (printable):
+            Obstacles{1} = [2.72, 2.5;
+                            2.72, 1.15;
+                            2.15, 1.15;
+                            2.15, 2.5;];
+                        
+            Obstacles{2} = [3.28, 2.5;
+                            3.28, 1.15;
+                            4,    1.15;
+                            4,    2.5;];
         end
         
         function obstacle = square_type(center, w, h)

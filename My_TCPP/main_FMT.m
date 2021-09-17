@@ -52,9 +52,10 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 % drawnow
 %% Create Task Environment
 sampling_intensity  = 2;
+adaptive_sampling_intensity = 10;
 r_search            = 0.3;
 max_trials          = 100;
-for obs_config_idx = 1:5
+for obs_config_idx = 2:6
     for tdx = 1:5
         file_name = "FMT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
         ax1 = figure(1);
@@ -67,7 +68,7 @@ for obs_config_idx = 1:5
         drawnow %
         
         Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
-        FMTStar                         = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trials, file_name);
+        FMTStar                         = CLS_2DFMTStar(Env, sampling_intensity, adaptive_sampling_intensity, r_search, max_trials, file_name);
         [path, ite, cost, time, record] = FMTStar.FMT_Star;
         saveas(ax1, file_name+".fig")
         hold off %
