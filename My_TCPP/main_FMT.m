@@ -51,8 +51,6 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 % Obstacles_Poly = {};
 % drawnow
 %% Create Task Environment
-
-
 sampling_intensity  = 2;
 r_search            = 0.3;
 parfor obs_config_idx = 1:5
@@ -68,7 +66,7 @@ parfor obs_config_idx = 1:5
         drawnow %
         
         Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
-        FMTStar                         = CLS_2DFMTStar(Env, sampling_intensity, r_search, max_trial, file_name);
+        FMTStar                         = CLS_2DFMTStar(Env, sampling_intensity, r_search, file_name);
         [path, ite, cost, time, record] = FMTStar.FMT_Star;
         saveas(ax1, file_name+".fig")
         hold off %
@@ -88,7 +86,7 @@ parfor obs_config_idx = 1:5
             for kdx = length(path{pdx}):-1:2
                 line([path{pdx}(kdx-1).pose(1), path{pdx}(kdx).pose(1)], [path{pdx}(kdx-1).pose(2), path{pdx}(kdx).pose(2)], [0,0], 'Color', '#316879', 'LineWidth', 4);
             end
-            POSES = this.Env.Extract_item(path{pdx}, 'pose');
+            POSES = Env.Extract_item(path{pdx}, 'pose');
             quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 0.5, 'Color', '#316879', 'LineWidth', 2);
         end
         drawnow %
