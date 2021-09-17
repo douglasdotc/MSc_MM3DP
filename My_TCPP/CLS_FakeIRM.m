@@ -68,7 +68,7 @@ classdef CLS_FakeIRM
         % Outputs:
         % IsInIRM:  Flag indicate if pose in IRM or not
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            th_thres         = 45*pi/180;
+            th_thres         = 60*pi/180;
             q                = pose(1:2);
             task             = T_s(1:2, 4)';
             task_q_diff      = task - q;

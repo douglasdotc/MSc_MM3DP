@@ -55,8 +55,8 @@ sampling_intensity  = 2;
 adaptive_sampling_intensity = 10;
 r_search            = 0.3;
 max_trials          = 100;
-for obs_config_idx = 2:6
-    for tdx = 1:5
+for obs_config_idx = 1:6
+    parfor tdx = 1:8
         file_name = "FMT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
         ax1 = figure(1);
         PrintingTask.plot();

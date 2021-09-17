@@ -130,7 +130,7 @@ classdef CLS_2DRRTStar
                                 stall_count(pdx) = stall_count(pdx) + 1;
                             end
 
-                            if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 1000 % stall count > 100 --> tried hard enough
+                            if round(abs(q_new.pose(5) - this.s_f(pdx)), 4) < 1e-4 || stall_count(pdx) >= 2000 % stall count > 100 --> tried hard enough
                                 Reached_Goal(pdx) = true;
                                 Goals{pdx}        = q_new;
                             end
@@ -345,7 +345,7 @@ classdef CLS_2DRRTStar
             IsGoal = true;
         else
             mean   = s_max;                 % Current furthest progress
-            s_var  = 0.05*s_f;              % Variance
+            s_var  = 0.1*s_f;               % Variance
             sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
             s_Norm = s_var*randn(1) + mean; % Normal distribution sampling
             
