@@ -53,13 +53,13 @@ classdef CLS_Obstacles
         function Obstacles = Obstacle_config_3()
             %%
             % Long narrow gap (printable):
-            Obstacles{1} = [2.72, 2.85;
-                            2.72, 1.15;
+            Obstacles{1} = [2.65, 2.85;
+                            2.65, 1.15;
                             2.15, 1.15;
                             2.15, 2.85;];
                         
-            Obstacles{2} = [3.28, 2.85;
-                            3.28, 1.15;
+            Obstacles{2} = [3.35, 2.85;
+                            3.35, 1.15;
                             4,    1.15;
                             4,    2.85;];
         end

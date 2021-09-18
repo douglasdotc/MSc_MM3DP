@@ -84,8 +84,8 @@ classdef CLS_2DRRTStar
             dist_method               = 'forward_progress_sq_norm';     % Method name for calculating distance
 %             dist_method = 'sq_norm';
             max_iter                  = 1e4;                            % Max. iteration
-            delta_l                   = 0.05;                            % RRT edge length
-            delta_l_step              = 0.01;                      % RRT edge step size
+            delta_l                   = 0.1;                            % RRT edge length
+            delta_l_step              = 0.02;                      % RRT edge step size
             eps_neigh                 = 0.25;
             eps_neigh_rewire          = 0.25;
             
@@ -345,9 +345,9 @@ classdef CLS_2DRRTStar
             IsGoal = true;
         else
             mean   = s_max;                 % Current furthest progress
-            s_var  = 0.1*s_f;               % Variance
+            s_var  = 0.2*s_f;               % Variance
             sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
-            s_Norm = s_var*randn(1) + mean; % Normal distribution sampling
+            s_Norm = s_var*randn() + mean; % Normal distribution sampling
             
             s_rand = max(s_break, min(s_f, s_Norm));
             IsGoal = false;

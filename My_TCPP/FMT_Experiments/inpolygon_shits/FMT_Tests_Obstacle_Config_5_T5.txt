@@ -1,0 +1,5 @@
+Total time: 1364.8509
+Sampling time: 95.9463
+Iterations 6417
+Path cost 15.3709
+Total number of nodes: 68
