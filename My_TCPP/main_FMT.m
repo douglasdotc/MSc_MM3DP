@@ -51,12 +51,13 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 % Obstacles_Poly = {};
 % drawnow
 %% Create Task Environment
-sampling_intensity  = 2;
+sampling_intensity          = 2;
 adaptive_sampling_intensity = 10;
-r_search            = 0.3;
-max_trials          = 100;
-for obs_config_idx = 5:5
-    parfor tdx = 1:8
+r_search                    = 0.3;
+max_trials                  = 100;
+
+for obs_config_idx = 1:6
+    for tdx = 1:8
         file_name = "FMT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
         ax1 = figure(1);
         PrintingTask.plot();
@@ -64,10 +65,10 @@ for obs_config_idx = 5:5
         hold on
         xlabel('x (m)')
         ylabel('y (m)')
-        Obstacles_Poly = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
+        [Obstacles_Poly, Obstacle_break_Poly] = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
         drawnow %
         
-        Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
+        Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, Obstacle_break_Poly, IsDEBUG);
         FMTStar                         = CLS_2DFMTStar(Env, sampling_intensity, adaptive_sampling_intensity, r_search, max_trials, file_name);
         [path, ite, cost, time, record] = FMTStar.FMT_Star;
         saveas(ax1, file_name+".fig")

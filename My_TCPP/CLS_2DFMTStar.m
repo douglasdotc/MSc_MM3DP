@@ -191,10 +191,8 @@ classdef CLS_2DFMTStar
                 
                 if z.pose(5) > s_max
                     s_max       = z.pose(5);
-                    stall_count = 0;
-                end
-                
-                if abs(round(z.pose(5) - s_max, 10)) < 1e-10
+                    stall_count = 1;
+                else
                     stall_count = stall_count + 1;
                 end
                 
@@ -307,51 +305,6 @@ classdef CLS_2DFMTStar
             end
             % sampled point is less then one step away:
             new_pt_pose = to_pt.pose;
-        end
-        
-        function IsValid = CollisionCheck(this, node)
-            %% TO BE DELETED
-            IsValid = true;
-            % Robot hit box pose:
-            ro_T = [node.pose(3), -node.pose(4), node.pose(1);
-                    node.pose(4),  node.pose(3), node.pose(2);
-                               0,             0,            1];
-            
-            Robot_Poly = (ro_T*this.Env.robot_hitbox)';
-            
-            % Check if robot collide with obstacles
-            for o_idx = 1:length(this.Env.obstacles)
-                IsCollide = any(inpolygon(this.Env.obstacles{o_idx}.Vertices(:,1), this.Env.obstacles{o_idx}.Vertices(:,2), Robot_Poly(:,1), Robot_Poly(:,2)));
-                Iscollide = IsCollide || any(inpolygon(Robot_Poly(:,1), Robot_Poly(:,2), this.Env.obstacles{o_idx}.Vertices(:,1), this.Env.obstacles{o_idx}.Vertices(:,2)));
-                
-                if Iscollide
-                    if this.IsDEBUG
-                        %disp("Robot collide with obstacles")
-                    end
-                    IsValid = false;
-                    return;
-                end
-            end
-        end
-        
-        function nodes = TD_sample_pts(this, n, varargin)
-            %% TO BE DELETED
-            if ~isempty(varargin)
-                nodes   = varargin{1};
-            else
-                nodes   = [];
-            end
-            
-            for idx = 1:n
-                pt = [randi(6)*rand(1,2), 1, 0, 0];
-                pt = node_SE2(pt);
-                
-                if isempty(nodes)
-                    nodes = pt;
-                else
-                    CLS_KDTree.insert(pt, nodes);
-                end
-            end
         end
                 
         function [nodes, IsDifficultRegion] = sample_pts(this, s, n, varargin)

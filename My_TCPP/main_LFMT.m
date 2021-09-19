@@ -65,10 +65,10 @@ for obs_config_idx = 1:1
         hold on %
         xlabel('x (m)') %
         ylabel('y (m)') %
-        Obstacles_Poly = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
+        [Obstacles_Poly, Obstacle_break_Poly] = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
         drawnow %
         
-        Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
+        Env                             = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, Obstacle_break_Poly, IsDEBUG);
         FMTStar                         = CLS_2DLFMTStar(Env, sampling_intensity, r_search, max_trial, file_name);
         [path, ite, cost, time, record] = FMTStar.FMT_Star;
         saveas(ax1, file_name+".fig")

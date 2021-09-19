@@ -85,8 +85,8 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 %% TEST
 num_node               = 200;
 IRM_overlap_threshold  = 0.5;
-for obs_config_idx = 5:7
-    for tdx = 1:5
+for obs_config_idx = 1:6
+    parfor tdx = 1:5
         file_name = "RRT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
         ax1 = figure(1); %
         PrintingTask.plot();
