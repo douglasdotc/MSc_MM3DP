@@ -85,9 +85,8 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 %% TEST
 num_node               = 200;
 IRM_overlap_threshold  = 0.5;
-task_ROI_opening_angle = 180;
-for obs_config_idx = 1:6
-    parfor tdx = 1:5
+for obs_config_idx = 5:7
+    for tdx = 1:5
         file_name = "RRT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
         ax1 = figure(1); %
         PrintingTask.plot();
@@ -95,13 +94,12 @@ for obs_config_idx = 1:6
         hold on
         xlabel('x (m)')
         ylabel('y (m)')
-        Obstacles_Poly         = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, false);
-        Obstacles_Poly         = {};
-        Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, IsDEBUG);
+        [Obstacles_Poly, Obstacle_break_Poly] = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
+%         Obstacles_Poly         = {};
+        Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, Obstacle_break_Poly, IsDEBUG);
         fprintf("Finding breakpoints...");
-        break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold, task_ROI_opening_angle);
+        break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold);
         break_pts              = [s(1); break_pts; s(end)];
-        break_pts              = [s(1); s(end)];
         fprintf("done\n");
         drawnow
 
