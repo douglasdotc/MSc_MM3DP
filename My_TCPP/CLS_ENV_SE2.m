@@ -29,7 +29,7 @@ classdef CLS_ENV_SE2 < handle
 %             this.y_lim          = y_lim;
         end
         
-        function nodes = sample_pts(this, s, n)
+        function nodes = sample_pts(this, s, n, varargin)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % Sample n points from the IRM corresponds to progress s
         % Inputs:
@@ -38,14 +38,23 @@ classdef CLS_ENV_SE2 < handle
         % Outputs:
         % nodes: An array of nodes with size nx1
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
+            if ~isempty(varargin)
+                IsCheckValid = true;
+            else
+                IsCheckValid = false;
+            end
             % Find the transformation matrix correspond to the progress s:
             T_s     = this.task_T(:, :, min(size(this.task_T, 3), max(1, ceil(size(this.task_T, 3)*s))));
             nodes   = [];
             for idx = 1:n % sample n pts
                 [pt, ~] = this.IRM.sample(T_s(1:3, 4), s);
                 pt      = node_SE2(pt);
-
+                if IsCheckValid
+                    while ~this.ValidityCheck(pt)
+                        [pt, ~] = this.IRM.sample(T_s(1:3, 4), s);
+                        pt      = node_SE2(pt);
+                    end
+                end
                 % KD Tree
                 if isempty(nodes)
                     nodes = [nodes; pt];

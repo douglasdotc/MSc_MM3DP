@@ -19,8 +19,8 @@ classdef CLS_Obstacles
             end
             
             if IsDEBUG
-                for jdx = 1:length(Obstacles)
-                    Obstacles_Poly{jdx} = polyshape(Obstacles{jdx});
+                for jdx = 1:length(Obstacle_break)
+                    Obstacles_Poly{jdx} = polyshape(Obstacle_break{jdx});
                     if IsDEBUG
                         plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
                     end
@@ -135,7 +135,6 @@ classdef CLS_Obstacles
             [Obstacles{2}, Obstacle_break{2}] = CLS_Obstacles.square_type(3.28, 1.15, 0.72, 1.35);
             
             [Obstacles{3}, ~] = CLS_Obstacles.square_type(2.35, 1.35, 0.17, 0.95);
-%             [Obstacles{4}, ~] = CLS_Obstacles.square_type(2.55, 1.55, 0.07, 0.55);
             [Obstacles{4}, ~] = CLS_Obstacles.square_type(3.48, 1.35, 0.32, 0.95);
             [Obstacles{5}, ~] = CLS_Obstacles.square_type(3.68, 1.55, 0.12, 0.55);
         end
