@@ -360,34 +360,5 @@ classdef CLS_2DFMTStar
                 end
             end
         end
-        
-        function [NN_pt, NN_val, NN_idx] = Nearest_Neighbour(this, pos, nodes, method, k)
-        %% Description://///////////////////////////////////////////////////////////////////////////
-        % Return information of the nearest neighbour of pos 
-        % Inputs:
-        % 1. pos: [x y cos(theta) sin(theta) t]
-        % 2. neighbours: X_neigh \in R^(nx3)
-        % Methods:
-        % 1. Distance: ||x_i - p||
-        % 2. KDTree
-        % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-            if strcmp(method, 'sq_norm')
-                dists            = dist_metric.method(pos, nodes, method);
-                [NN_val, NN_idx] = min(dists);
-                NN_pt            = node_SE2.copy(nodes(NN_idx));
-                
-            elseif strcmp(method, 'KDTree_sq_norm')
-                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'sq_norm', k);
-                NN_idx = NaN;
-                
-            elseif strcmp(method, 'KDTree_progress_sq_norm')
-                [NN_pt, NN_val]  = CLS_KDTree.Nearest_Neighbour(pos, nodes(1), 'FMT_progress_sq_norm', k);
-                NN_idx = NaN;
-            elseif strcmp(method, 'KDTree_radius_sq_norm')
-                NN_pt  = CLS_KDTree.Near_Neighbour(pos, nodes, 'sq_norm', k);
-                NN_val = NaN;
-                NN_idx = NaN;
-            end
-        end
     end
 end

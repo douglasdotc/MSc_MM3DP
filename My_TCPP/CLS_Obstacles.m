@@ -48,6 +48,13 @@ classdef CLS_Obstacles
                                 0.9, 2.0;];
 
             [Obstacles{5}, Obstacle_break{5}] = CLS_Obstacles.circle([0.5, 3.5], 0.4);
+            [Obstacles{6}, ~] = CLS_Obstacles.square_type(1.3, -0.05, 0.4, 1.1);
+            [Obstacles{7}, ~] = CLS_Obstacles.square_type(1.5, 0.15, 0.1, 0.7);
+            [Obstacles{8}, ~] = CLS_Obstacles.square_type(2.3, 1.45, 0.4, 0.1);
+            [Obstacles{9}, ~] = CLS_Obstacles.square_type(3.3, 1.45, 0.4, 0.1);
+            [Obstacles{10}, ~] = CLS_Obstacles.square_type(0.3, 2.2, 0.4, 0.4);
+            [Obstacles{11}, ~] = CLS_Obstacles.square_type(0.5, 2.4, 0.1, 0.1);
+            [Obstacles{12}, ~] = CLS_Obstacles.circle([0.5, 3.5], 0.2);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_2()
@@ -55,6 +62,11 @@ classdef CLS_Obstacles
             % Long narrow gap (not printable):
             [Obstacles{1}, Obstacle_break{1}] = CLS_Obstacles.square_type(2.1, 1.15, 0.8, 1.7);
             [Obstacles{2}, Obstacle_break{2}] = CLS_Obstacles.square_type(3.1, 1.15, 0.8, 1.7);
+            
+            [Obstacles{3}, ~] = CLS_Obstacles.square_type(2.3, 1.35, 0.4, 1.3);
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(2.5, 1.55, 0.2, 0.9);
+            [Obstacles{5}, ~] = CLS_Obstacles.square_type(3.3, 1.35, 0.4, 1.3);
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(3.5, 1.55, 0.2, 0.9);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_3()
@@ -62,6 +74,10 @@ classdef CLS_Obstacles
             % Long narrow gap (printable):
             [Obstacles{1}, Obstacle_break{1}] = CLS_Obstacles.square_type(2.15, 1.15, 0.5, 1.7);
             [Obstacles{2}, Obstacle_break{2}] = CLS_Obstacles.square_type(3.35, 1.15, 0.65, 1.7);
+            
+            [Obstacles{3}, ~] = CLS_Obstacles.square_type(2.35, 1.35, 0.1, 1.3);
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(3.55, 1.35, 0.25, 1.3);
+            [Obstacles{5}, ~] = CLS_Obstacles.square_type(3.7, 1.55, 0.1, 0.9);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_4()
@@ -70,6 +86,10 @@ classdef CLS_Obstacles
             [Obstacles{1}, Obstacle_break{1}] = CLS_Obstacles.square_type(2.1, 2.25, 0.8, 0.5);
             [Obstacles{2}, Obstacle_break{2}] = CLS_Obstacles.square_type(3.1, 1.75, 0.8, 0.5);
             [Obstacles{3}, Obstacle_break{3}] = CLS_Obstacles.square_type(2.1, 1.25, 0.8, 0.5);
+            
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(2.3, 2.45, 0.4, 0.1);
+            [Obstacles{5}, ~] = CLS_Obstacles.square_type(3.3, 1.95, 0.4, 0.1);
+            [Obstacles{6}, ~] = CLS_Obstacles.square_type(2.3, 1.45, 0.4, 0.1);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_5()
@@ -90,7 +110,8 @@ classdef CLS_Obstacles
                                  [linspace(0.1,0.5,4)', repmat(3.1,4,1)];
                                  [repmat(0.5,5,1), linspace(3.1,3.6,5)'];
                                  [linspace(0.5,-0.6,11)', repmat(3.6,11,1)];
-                                 [repmat(-0.6,11,1), linspace(3.6,2.5,11)']];
+                                 [repmat(-0.6,11,1), linspace(3.6,2.5,11)'];
+                                 [linspace(-0.6,-0.1,5)', repmat(2.5,5,1)];];
                              
             Obstacle_break{2} = [-0.1, 2.5;
                                  -0.1, 2.9;
@@ -99,6 +120,12 @@ classdef CLS_Obstacles
                                   0.5, 3.6;
                                  -0.6, 3.6;
                                  -0.6, 2.5;];
+                             
+            [Obstacles{3}, ~] = CLS_Obstacles.square_type(0.3, 2.2, 0.4, 0.4);
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(0.5, 2.4, 0.1, 0.1);
+            [Obstacles{5}, ~] = CLS_Obstacles.square_type(-0.4, 2.7, 0.3, 0.3);
+            [Obstacles{6}, ~] = CLS_Obstacles.square_type(-0.4, 3.1, 0.3, 0.3);
+            [Obstacles{7}, ~] = CLS_Obstacles.square_type(0, 3.3, 0.3, 0.3);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_6()
@@ -106,6 +133,11 @@ classdef CLS_Obstacles
             % Long narrow gap 2 (printable):
             [Obstacles{1}, Obstacle_break{1}] = CLS_Obstacles.square_type(2.15, 1.15, 0.57, 1.35);
             [Obstacles{2}, Obstacle_break{2}] = CLS_Obstacles.square_type(3.28, 1.15, 0.72, 1.35);
+            
+            [Obstacles{3}, ~] = CLS_Obstacles.square_type(2.35, 1.35, 0.17, 0.95);
+%             [Obstacles{4}, ~] = CLS_Obstacles.square_type(2.55, 1.55, 0.07, 0.55);
+            [Obstacles{4}, ~] = CLS_Obstacles.square_type(3.48, 1.35, 0.32, 0.95);
+            [Obstacles{5}, ~] = CLS_Obstacles.square_type(3.68, 1.55, 0.12, 0.55);
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_test_config()
