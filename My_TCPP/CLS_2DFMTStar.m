@@ -45,10 +45,33 @@ classdef CLS_2DFMTStar
         % \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
             total_cost      = 0;
             num_path_nodes  = [];
-            tic
-                [paths, ite, sampling_time, record] = this.Forward_FMT_Star();
-            time = toc;
             
+            ax1 = figure(1); %
+            this.Env.task_OBJ.plot();
+            box on
+            hold on
+            xlabel('x (m)')
+            ylabel('y (m)')
+            for jdx = 1:length(this.Env.obstacles_break)
+                Obstacles_Poly{jdx} = polyshape(this.Env.obstacles_break{jdx});
+                plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
+                hold on
+            end
+            drawnow
+            tic
+                [paths, ite, sampling_time, record, rec_edges] = this.Forward_FMT_Star();
+            time = toc;
+            if this.IsDEBUG % Draw tree:
+                if ~isempty(rec_edges)
+                    for edx = 1:length(rec_edges)
+                        for eedx = 1:size(rec_edges{edx},1)
+                            line([rec_edges{edx}(eedx,1), rec_edges{edx}(eedx,6)], [rec_edges{edx}(eedx,2), rec_edges{edx}(eedx,7)], [rec_edges{edx}(eedx,5), rec_edges{edx}(eedx,10)], 'Color', '#E1701A', 'LineWidth', 0.5);
+                        end
+                        quiver(rec_edges{edx}(:,6), rec_edges{edx}(:,7), rec_edges{edx}(:,8), rec_edges{edx}(:,9), 0.2, 'LineWidth', 2);
+                        drawnow
+                    end
+                end
+            end
             if this.IsDEBUG
                 for pdx = 1:length(paths)
                     for kdx = length(paths{pdx}):-1:2
@@ -76,9 +99,37 @@ classdef CLS_2DFMTStar
             fprintf(fileID, "Total number of nodes: %d\n", sum_path_nodes);
             fclose(fileID);
             save(this.file_name+".mat");
+            saveas(ax1, this.file_name+".fig")
+            hold off %
+            delete(ax1); %
+            
+            ax1 = figure(1); %
+            this.Env.task_OBJ.plot();
+            box on
+            hold on
+            xlabel('x (m)')
+            ylabel('y (m)')
+            for jdx = 1:length(this.Env.obstacles_break)
+                Obstacles_Poly{jdx} = polyshape(this.Env.obstacles_break{jdx});
+                plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
+                hold on
+            end
+            if this.IsDEBUG
+                for pdx = 1:length(paths)
+                    for kdx = length(paths{pdx}):-1:2
+                        line([paths{pdx}(kdx-1).pose(1), paths{pdx}(kdx).pose(1)], [paths{pdx}(kdx-1).pose(2), paths{pdx}(kdx).pose(2)], [0,0], 'Color', '#316879', 'LineWidth', 4);
+                    end
+                    POSES = this.Env.Extract_item(paths{pdx}, 'pose');
+                    quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 0.5, 'Color', '#316879', 'LineWidth', 2);
+                end
+                drawnow
+            end
+            saveas(ax1, this.file_name+"_Path_only.fig")
+            hold off %
+            delete(ax1); %
         end
         
-        function [paths, ite, sampling_time, record] = Forward_FMT_Star(this)
+        function [paths, ite, sampling_time, record, rec_edges] = Forward_FMT_Star(this)
             %%
             % Init:
             IsDifficultRegion_init = true;
@@ -203,21 +254,10 @@ classdef CLS_2DFMTStar
             end
             
             if ~isempty(z.parent)
-                path_store = [path_store; z]; % store the last section
+                path_store      = [path_store; z]; % store the last section
                 this.E{end + 1} = temp_E;
             end
-            
-            if this.IsDEBUG % Draw tree:
-                if ~isempty(this.E)
-                    for edx = 1:length(this.E)
-                        for eedx = 1:size(this.E{edx},1)
-                            line([this.E{edx}(eedx,1), this.E{edx}(eedx,6)], [this.E{edx}(eedx,2), this.E{edx}(eedx,7)], [this.E{edx}(eedx,5), this.E{edx}(eedx,10)], 'Color', '#E1701A', 'LineWidth', 0.5);
-                        end
-                        quiver(this.E{edx}(:,6), this.E{edx}(:,7), this.E{edx}(:,8), this.E{edx}(:,9), 0.2, 'LineWidth', 2);
-                        drawnow
-                    end
-                end
-            end
+            rec_edges = this.E;
             
             % Trace path
             for pdx = 1:length(path_store)
@@ -253,12 +293,12 @@ classdef CLS_2DFMTStar
         
         function [N_nodes, dists, r] = Near(this, nodes, pt, r, dist_method)
             %%
-            r_inc = 0.01;
+            r_inc   = 0.01;
             m_nodes = this.DeleteNode(nodes, pt);
             dists   = dist_metric.method(pt, m_nodes, dist_method);
             N_nodes = m_nodes(dists <= r);
             while isempty(N_nodes)
-                r = r + r_inc;
+                r       = r + r_inc;
                 N_nodes = m_nodes(dists <= r);
             end
             dists   = dists(dists <= r);
@@ -327,13 +367,6 @@ classdef CLS_2DFMTStar
             IsDifficultRegion = false;
             for idx = 1:n % sample n pts
                 trial                 = 0;
-%                 IsValid = false;
-%                 while ~IsValid
-%                     [pt, ~] = this.Env.IRM.sample(T_s(1:3, 4), s);
-%                     pt      = node_SE2(pt);
-%                     trial   = trial + 1;
-%                     IsValid = this.Env.ValidityCheck(pt);
-%                 end
                 IsInIRM_and_TaskValid = false;
                 
                 while ~IsInIRM_and_TaskValid || trial <= this.max_trials

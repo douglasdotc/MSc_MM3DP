@@ -149,8 +149,8 @@ classdef CLS_2DRRTStar
             Goals                     = cell(num_paths, 1);
             paths                     = cell(1, num_paths);
             record                    = [];
-%             while ~all(Reached_Goal)
-                %% Main loop
+            
+            %% Main loop
             for pdx = 1:num_paths
                 if ~isempty(nodes{pdx})
                     while ~Reached_Goal(pdx)
@@ -202,10 +202,7 @@ classdef CLS_2DRRTStar
                     end
                 end
             end
-%             end
             rec_edges = this.edges;
-            
-            
             for pdx = 1:length(Goals)
                 if ~isempty(Goals{pdx})
                     q_end       = node_SE2.copy(Goals{pdx});
@@ -270,7 +267,7 @@ classdef CLS_2DRRTStar
                             this.edges  = [this.edges; [q_new.pose, node.parent.pose]];
                         end
                         node.parent = q_new; % change parent
-                        node.cost   = acummu_cost; %% New
+                        node.cost   = acummu_cost;
                     end
                 end
             end
@@ -320,11 +317,8 @@ classdef CLS_2DRRTStar
             IsGoal = true;
         else
             mean   = s_max;                 % Current furthest progress
-            s_var  = 0.05*(s_f - s_i);               % Variance
-            sigma  = sqrt(s_var);           % Wiggle around Current furthest progress
+            s_var  = 0.05*(s_f - s_i);      % Variance
             s_Norm = s_var*randn() + mean; % Normal distribution sampling
-            
-%             s_rand = max(s_i, min(s_f, s_Norm));
             s_rand = min(s_f, max(s_i, s_Norm));
             IsGoal = false;
         end

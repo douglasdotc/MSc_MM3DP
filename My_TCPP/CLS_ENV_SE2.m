@@ -25,8 +25,6 @@ classdef CLS_ENV_SE2 < handle
             this.obstacles       = obstacles;
             this.obstacles_break = obstacles_break;
             this.IsDEBUG         = IsDEBUG;
-%             this.x_lim          = x_lim;
-%             this.y_lim          = y_lim;
         end
         
         function nodes = sample_pts(this, s, n, varargin)
@@ -101,7 +99,6 @@ classdef CLS_ENV_SE2 < handle
                 xq = obss(:,1);
                 yq = obss(:,2);
                 IsCollide = any(inpolygon(xq, yq, Robot_Poly_x, Robot_Poly_y));
-%                 IsCollide = IsCollide || any(inpolygon(Robot_Poly_x, Robot_Poly_y, xq, yq));
                 if IsCollide
                     if this.IsDEBUG
                         %disp("Robot collide with obstacles")
@@ -109,19 +106,6 @@ classdef CLS_ENV_SE2 < handle
                     IsValid = false;
                 end
             end
-            
-%             for o_idx = 1:length(this.obstacles)
-%                 IsCollide = any(inpolygon(this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2), Robot_Poly_x, Robot_Poly_y));
-%                 Iscollide = IsCollide || any(inpolygon(Robot_Poly_x, Robot_Poly_y, this.obstacles{o_idx}(:,1), this.obstacles{o_idx}(:,2)));
-%                 
-%                 if Iscollide
-%                     if this.IsDEBUG
-%                         %disp("Robot collide with obstacles")
-%                     end
-%                     IsValid = false;
-%                     return;
-%                 end
-%             end
         end
         
         function IsValid = CheckCollisionWithTask(this, node, varargin)
