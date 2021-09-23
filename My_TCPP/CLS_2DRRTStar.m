@@ -35,9 +35,31 @@ classdef CLS_2DRRTStar
         function [paths, ite] = RRT_Star(this)
             total_cost      = 0;
             num_path_nodes  = [];
+            
+            ax1 = figure(1); %
+            this.Env.task_OBJ.plot();
+            box on
+            hold on
+            xlabel('x (m)')
+            ylabel('y (m)')
+            for jdx = 1:length(this.Env.obstacles_break)
+                Obstacles_Poly{jdx} = polyshape(this.Env.obstacles_break{jdx});
+                plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
+                hold on
+            end
+            drawnow
             tic
-                [paths, ite, record] = this.RRT_Star_Forward();
+                [paths, ite, record, rec_edges] = this.RRT_Star_Forward();
             time = toc;
+            
+            % draw tree
+            if this.IsDEBUG
+                for idx = 1:size(rec_edges, 1)
+                    line([rec_edges(idx,1), rec_edges(idx,6)], [rec_edges(idx,2), rec_edges(idx,7)], [rec_edges(idx,5), rec_edges(idx,10)], 'Color', '#E1701A', 'LineWidth', 1);
+                end
+                quiver([rec_edges(:,1);rec_edges(:,6)], [rec_edges(:,2);rec_edges(:,7)], [rec_edges(:,3);rec_edges(:,8)], [rec_edges(:,4);rec_edges(:,9)]);
+                drawnow
+            end
             
             for pdx = 1:length(paths)
                 for kdx = length(paths{pdx}):-1:2
@@ -64,9 +86,37 @@ classdef CLS_2DRRTStar
             fprintf(fileID, "Total number of nodes: %d\n", sum_path_nodes);
             fclose(fileID);
             save(this.file_name+".mat");
+            saveas(ax1, this.file_name+".fig")
+            hold off %
+            delete(ax1); %
+            
+            ax1 = figure(1); %
+            this.Env.task_OBJ.plot();
+            box on
+            hold on
+            xlabel('x (m)')
+            ylabel('y (m)')
+            for jdx = 1:length(this.Env.obstacles_break)
+                Obstacles_Poly{jdx} = polyshape(this.Env.obstacles_break{jdx});
+                plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
+                hold on
+            end
+            this.Env.Breakpoints_IRM_obs(0.5);
+            drawnow
+            for pdx = 1:length(paths)
+                for kdx = length(paths{pdx}):-1:2
+                    line([paths{pdx}(kdx-1).pose(1), paths{pdx}(kdx).pose(1)], [paths{pdx}(kdx-1).pose(2), paths{pdx}(kdx).pose(2)], [paths{pdx}(kdx-1).pose(5), paths{pdx}(kdx).pose(5)], 'Color', '#316879', 'LineWidth', 4);
+                end
+                POSES = this.Env.Extract_item(paths{pdx}, 'pose');
+                quiver(POSES(:,1), POSES(:,2), POSES(:,3), POSES(:,4), 0.5, 'Color', '#316879', 'LineWidth', 2);
+                drawnow
+            end
+            saveas(ax1, this.file_name+"_Path_only.fig")
+            hold off %
+            delete(ax1); %
         end
         
-        function [paths, ite, record] = RRT_Star_Forward(this)
+        function [paths, ite, record, rec_edges] = RRT_Star_Forward(this)
         %% Description://///////////////////////////////////////////////////////////////////////////
         % RRT* algorithm begins by initializing a tree T = (V, E) with a
         % vertex at the initial configuration (i.e. V = {q_I}). 
@@ -153,15 +203,8 @@ classdef CLS_2DRRTStar
                 end
             end
 %             end
+            rec_edges = this.edges;
             
-            % draw tree
-            if this.IsDEBUG
-                for idx = 1:size(this.edges, 1)
-                    line([this.edges(idx,1), this.edges(idx,6)], [this.edges(idx,2), this.edges(idx,7)], [this.edges(idx,5), this.edges(idx,10)], 'Color', '#E1701A', 'LineWidth', 1);
-                end
-                quiver([this.edges(:,1);this.edges(:,6)], [this.edges(:,2);this.edges(:,7)], [this.edges(:,3);this.edges(:,8)], [this.edges(:,4);this.edges(:,9)]);
-                drawnow
-            end
             
             for pdx = 1:length(Goals)
                 if ~isempty(Goals{pdx})

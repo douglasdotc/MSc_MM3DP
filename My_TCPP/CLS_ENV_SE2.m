@@ -101,7 +101,7 @@ classdef CLS_ENV_SE2 < handle
                 xq = obss(:,1);
                 yq = obss(:,2);
                 IsCollide = any(inpolygon(xq, yq, Robot_Poly_x, Robot_Poly_y));
-                % IsCollide = IsCollide || any(inpolygon(Robot_Poly_x, Robot_Poly_y, xq, yq));
+%                 IsCollide = IsCollide || any(inpolygon(Robot_Poly_x, Robot_Poly_y, xq, yq));
                 if IsCollide
                     if this.IsDEBUG
                         %disp("Robot collide with obstacles")
@@ -291,7 +291,7 @@ classdef CLS_ENV_SE2 < handle
             break_pts_idxs = unique(break_pts_idxs);
             
             if this.IsDEBUG
-                scatter(this.task_coord(break_pts_idxs, 1), this.task_coord(break_pts_idxs, 2), 'MarkerEdgeColor', [0 .5 .5], 'MarkerFaceColor', [0 .7 .7], 'LineWidth',1.5)
+                scatter(this.task_coord(break_pts_idxs, 1), this.task_coord(break_pts_idxs, 2), 'MarkerEdgeColor', '#D95319', 'MarkerFaceColor', '#EDB120', 'LineWidth',1.5)
             end
         end
         

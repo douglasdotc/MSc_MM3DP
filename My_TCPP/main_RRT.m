@@ -85,23 +85,23 @@ IRM                 = CLS_FakeIRM(min_task_robot_dist, IsDEBUG);
 %% TEST
 num_node               = 200;
 IRM_overlap_threshold  = 0.5;
-for obs_config_idx = 1:6
-    parfor tdx = 1:5
+for obs_config_idx = 1:5
+    for tdx = 1:5
         file_name = "RRT_Tests_Obstacle_Config_"+string(obs_config_idx)+"_T"+string(tdx);
-        ax1 = figure(1); %
-        PrintingTask.plot();
-        box on
-        hold on
-        xlabel('x (m)')
-        ylabel('y (m)')
+%         ax1 = figure(1); %
+%         PrintingTask.plot();
+%         box on
+%         hold on
+%         xlabel('x (m)')
+%         ylabel('y (m)')
         [Obstacles_Poly, Obstacle_break_Poly] = CLS_Obstacles.Obstacle_Config_select(obs_config_idx, IsDEBUG);
-%         Obstacles_Poly         = {};
+%         Obstacle_break_Poly         = {};
         Env                    = CLS_ENV_SE2(PrintingTask, T, s, robot, IRM, Obstacles_Poly, Obstacle_break_Poly, IsDEBUG);
         fprintf("Finding breakpoints...");
         break_pts              = Env.Breakpoints_IRM_obs(IRM_overlap_threshold);
         break_pts              = [s(1); break_pts; s(end)];
         fprintf("done\n");
-        drawnow
+%         drawnow
 
         %% Sample starting points
         fprintf("Sampling start points...");
@@ -111,9 +111,9 @@ for obs_config_idx = 1:6
         %% RRT*
         RRTStar     = CLS_2DRRTStar(Env, start_nodes, break_pts, file_name);
         [path, ite] = RRTStar.RRT_Star;
-        saveas(ax1, file_name+".fig")
-        hold off %
-        delete(ax1); %
+%         saveas(ax1, file_name+".fig")
+%         hold off %
+%         delete(ax1); %
     end
 end
 hold off

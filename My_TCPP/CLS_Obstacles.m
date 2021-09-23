@@ -17,16 +17,6 @@ classdef CLS_Obstacles
             elseif idx == 7
                 Obstacles = CLS_Obstacles.Obstacle_test_config();
             end
-            
-            if IsDEBUG
-                for jdx = 1:length(Obstacle_break)
-                    Obstacles_Poly{jdx} = polyshape(Obstacle_break{jdx});
-                    if IsDEBUG
-                        plot(Obstacles_Poly{jdx}, 'FaceColor', 'y')
-                    end
-                    hold on
-                end
-            end
         end
         
         function [Obstacles, Obstacle_break] = Obstacle_config_1()
@@ -48,6 +38,7 @@ classdef CLS_Obstacles
                                 0.9, 2.0;];
 
             [Obstacles{5}, Obstacle_break{5}] = CLS_Obstacles.circle([0.5, 3.5], 0.4);
+            
             [Obstacles{6}, ~] = CLS_Obstacles.square_type(1.3, -0.05, 0.4, 1.1);
             [Obstacles{7}, ~] = CLS_Obstacles.square_type(1.5, 0.15, 0.1, 0.7);
             [Obstacles{8}, ~] = CLS_Obstacles.square_type(2.3, 1.45, 0.4, 0.1);
