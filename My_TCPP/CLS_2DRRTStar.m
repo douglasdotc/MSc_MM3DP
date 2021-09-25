@@ -249,7 +249,6 @@ classdef CLS_2DRRTStar
                     % node is a neighbour
                     % Check if extendable from q_new --> node
                     [~, reached] = this.Extend(node, q_new, this.delta_l_step, r, dist_method);
-                    % q_check                 = node_SE2(q_check_pose);
                     % If extendable and the cost from start --> q_new --> node
                     % is less than the cost from start to node
                     acummu_cost = dist + q_new.cost;
@@ -264,7 +263,7 @@ classdef CLS_2DRRTStar
                             if ~isempty(del_idx)
                                 this.edges(del_idx,:) = [];
                             end
-                            this.edges  = [this.edges; [q_new.pose, node.parent.pose]];
+                            this.edges = [this.edges; [q_new.pose, node.parent.pose]];
                         end
                         node.parent = q_new; % change parent
                         node.cost   = acummu_cost;
